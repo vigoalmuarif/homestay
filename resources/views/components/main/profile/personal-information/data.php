@@ -1,0 +1,21 @@
+<?php
+
+return [
+    'defaultPersonalInfo' => [
+        'avatarUrl' => '/assets/images/user/user-01.jpg',
+        'fullName' => 'Musharof Chowdhury',
+        'role' => 'Team Manager',
+        'location' => 'Leeds, United Kingdom',
+        'firstName' => 'Emirhan',
+        'lastName' => 'Boruch',
+        'email' => 'randomuser@pimjo.com',
+        'phone' => '+09 363 398 46',
+        'bio' => 'Team Manager',
+        'socialLinks' => [
+            'facebook' => '',
+            'x' => '',
+            'linkedin' => '',
+            'instagram' => '',
+        ],
+    ],
+];
