@@ -17,8 +17,9 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             RoomSeeder::class,
             ServiceSeeder::class,
-            BookingSeeder::class,
-            HousekeepingSeeder::class,
+            // BookingSeeder::class,
+            // HousekeepingSeeder::class,
+            // OperationalTransactionSeeder::class,
         ]);
     }
 }

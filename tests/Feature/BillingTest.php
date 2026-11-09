@@ -115,6 +115,11 @@ test('staff can view single booking folio statement and settlement view', functi
     $response->assertSee('Rincian Item Tagihan Folio');
     $response->assertSee('Kalkulasi Tagihan Folio');
     $response->assertSee('Proses Kasir / Settlement');
+
+    // Also verify /statement alias route works with 200
+    $responseStatement = $this->actingAs($this->receptionist)->get(route('billing.statement', $booking));
+    $responseStatement->assertStatus(200);
+    $responseStatement->assertSee($booking->booking_code);
 });
 
 test('staff can settle folio balance and auto checkout guest with dirty room status', function () {

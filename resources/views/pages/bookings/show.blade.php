@@ -3,6 +3,50 @@
 @section('content')
     <div x-data="{
         depositAmount: {{ (float) ($booking->deposit_amount ?? 0) }},
+        checkOutBookingId: {{ $booking->id }},
+        guestName: '{{ addslashes($booking->customer->full_name) }}',
+        roomNumber: '{{ $booking->room->room_number }}',
+        checkOutActionUrl: '{{ route('bookings.check-out', $booking) }}',
+        isLoadingFolio: false,
+        folioData: null,
+        allowUnsettled: false,
+        paymentMethod: 'cash',
+        amountPaid: 0,
+        paymentNotes: '',
+        unsettledReason: '',
+        refundConfirmed: false,
+
+        formatRupiah(num) {
+            return new Intl.NumberFormat('id-ID').format(num || 0);
+        },
+
+        openCheckOut(bookingId, guestName, roomNumber) {
+            this.checkOutBookingId = bookingId || {{ $booking->id }};
+            this.guestName = guestName || '{{ addslashes($booking->customer->full_name) }}';
+            this.roomNumber = roomNumber || '{{ $booking->room->room_number }}';
+            this.checkOutActionUrl = `/bookings/${this.checkOutBookingId}/check-out`;
+            this.isLoadingFolio = true;
+            this.folioData = null;
+            this.allowUnsettled = false;
+            this.paymentMethod = 'cash';
+            this.amountPaid = 0;
+            this.paymentNotes = '';
+            this.unsettledReason = '';
+            this.refundConfirmed = false;
+            this.showDialog('checkOutDialog');
+
+            fetch(`/bookings/${this.checkOutBookingId}/folio-summary`)
+                .then(res => res.json())
+                .then(data => {
+                    this.folioData = data;
+                    this.amountPaid = data.balance_due || 0;
+                    this.isLoadingFolio = false;
+                })
+                .catch(err => {
+                    console.error('Gagal mengambil ringkasan folio:', err);
+                    this.isLoadingFolio = false;
+                });
+        },
         showDialog(id) {
             if (window.showUiDialog) {
                 window.showUiDialog(id);
@@ -67,15 +111,12 @@
                 @endif
 
                 @if ($booking->status === 'checked_in')
-                    <form action="{{ route('bookings.check-out', $booking) }}" method="POST"
-                        onsubmit="return confirm('Selesaikan Check-Out untuk Kamar {{ $booking->room->room_number }}? Kamar akan berstatus Dirty untuk dibersihkan.')">
-                        @csrf
-                        <x-ui.button type="submit" variant="primary"
-                            class="bg-emerald-600 hover:bg-emerald-700 text-white">
-                            <x-svg.check class="size-4" />
-                            <span>Check-Out Tamu</span>
-                        </x-ui.button>
-                    </form>
+                    <x-ui.button type="button" variant="primary"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        @click="openCheckOut({{ $booking->id }}, '{{ addslashes($booking->customer->full_name) }}', '{{ $booking->room->room_number }}')">
+                        <x-svg.check class="size-4" />
+                        <span>Check-Out Tamu</span>
+                    </x-ui.button>
                 @endif
 
                 <x-ui.button as="a" href="{{ route('bookings.edit', $booking) }}" variant="outline" size="default">
@@ -466,6 +507,9 @@
                 </form>
             </x-ui.dialog.content>
         </x-ui.dialog>
+
+        <!-- Folio Verification & Check-Out Modal -->
+        <x-main.bookings.checkout-modal />
 
     </div>
 @endsection

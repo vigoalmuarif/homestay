@@ -8,14 +8,37 @@
         room_number: '',
         guest_name: '',
         category: 'meal',
-        inclusion_title: ''
+        inclusion_title: '',
+        inclusion_id: ''
+    },
+    quickMealData: {
+        booking_id: '',
+        inclusion_id: '',
+        service_id: '{{ $availableServices->firstWhere('category', 'meal')?->id ?? '' }}',
+        menu_name: 'Nasi Goreng Spesial Homestay',
+        custom_notes: '',
+        fulfillment_mode: 'kitchen_queue'
     },
     fulfillmentFormData: {
         booking_id: '',
         service_id: '',
         quantity: 1,
         category_type: 'meal',
-        detail_notes: ''
+        detail_notes: '',
+        meal_menu: '',
+        meal_preference: '',
+        unit_info: '',
+        return_time: '18:00',
+        weight_kg: 1,
+        laundry_bag_no: ''
+    },
+    defaultServices: {
+        meal: '{{ $availableServices->firstWhere('category', 'meal')?->id ?? '' }}',
+        laundry: '{{ $availableServices->firstWhere('category', 'laundry')?->id ?? '' }}',
+        rental: '{{ $availableServices->firstWhere('category', 'rental')?->id ?? '' }}',
+        beverage: '{{ $availableServices->firstWhere('category', 'beverage')?->id ?? '' }}',
+        amenity: '{{ $availableServices->firstWhere('category', 'amenity')?->id ?? '' }}',
+        other: '{{ $availableServices->first()?->id ?? '' }}'
     },
     showDialog(id) {
         if (window.showUiDialog) {
@@ -37,19 +60,51 @@
             Alpine.$data(el).close();
         }
     },
-    openFulfillmentModal(booking, category, inclusionName) {
+    openQuickMealModal(booking, inclusion) {
+        this.selectedBooking = {
+            id: booking.id,
+            room_number: booking.room ? booking.room.room_number : '-',
+            guest_name: booking.customer ? (booking.customer.full_name || booking.customer.name) : 'Tamu',
+            category: 'meal',
+            inclusion_title: inclusion.service ? inclusion.service.name : 'Paket Sarapan',
+            inclusion_id: inclusion.id
+        };
+        this.quickMealData.booking_id = booking.id;
+        this.quickMealData.inclusion_id = inclusion.id;
+        this.quickMealData.service_id = inclusion.service_id || this.defaultServices.meal;
+        this.quickMealData.menu_name = inclusion.service ? inclusion.service.name : 'Nasi Goreng Spesial Homestay';
+        this.quickMealData.custom_notes = '';
+        this.quickMealData.fulfillment_mode = 'kitchen_queue';
+
+        const form = document.getElementById('quick-meal-form');
+        if (form) {
+            form.action = '/inclusions/' + booking.id + '/quick-claim';
+        }
+
+        this.showDialog('quickMealDialog');
+    },
+    openFulfillmentModal(booking, category, inclusionName, serviceId = null) {
         this.selectedBooking = {
             id: booking.id,
             room_number: booking.room ? booking.room.room_number : '-',
             guest_name: booking.customer ? (booking.customer.full_name || booking.customer.name) : 'Tamu',
             category: category,
-            inclusion_title: inclusionName
+            inclusion_title: inclusionName,
+            inclusion_id: ''
         };
         this.fulfillmentFormData.booking_id = booking.id;
         this.fulfillmentFormData.category_type = category;
         this.fulfillmentFormData.quantity = 1;
         this.fulfillmentFormData.detail_notes = '';
-        this.fulfillmentFormData.service_id = '';
+        this.fulfillmentFormData.meal_menu = '';
+        this.fulfillmentFormData.meal_preference = '';
+        this.fulfillmentFormData.unit_info = '';
+        this.fulfillmentFormData.return_time = '18:00';
+        this.fulfillmentFormData.weight_kg = 1;
+        this.fulfillmentFormData.laundry_bag_no = '';
+
+        // Dynamic default service matching category
+        this.fulfillmentFormData.service_id = serviceId || this.defaultServices[category] || this.defaultServices.other;
 
         const form = document.getElementById('fulfillment-form');
         if (form) {
@@ -414,8 +469,46 @@
                                             </x-ui.badge>
                                         @else
                                             <div class="flex items-center justify-end gap-2">
-                                                @if (in_array($category, ['meal', 'amenity', 'beverage']))
-                                                    <!-- 1-Click Quick Claim Form -->
+                                                @if ($category === 'meal')
+                                                    <!-- Menu selection quick claim -->
+                                                    <x-ui.button
+                                                        type="button"
+                                                        variant="default"
+                                                        size="sm"
+                                                        class="bg-success-600 hover:bg-success-700 text-white flex items-center gap-1.5"
+                                                        @click="openQuickMealModal({{ json_encode($b) }}, {{ json_encode($inc) }})">
+                                                        <span>🍳</span>
+                                                        <span>Pilih Menu Sarapan...</span>
+                                                    </x-ui.button>
+                                                    <x-ui.button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        @click="openFulfillmentModal({{ json_encode($b) }}, 'meal', '{{ addslashes($inc->service?->name ?? 'Sarapan') }}', '{{ $inc->service_id }}')">
+                                                        Pesanan Dapur...
+                                                    </x-ui.button>
+                                                @elseif ($category === 'laundry')
+                                                    <x-ui.button
+                                                        type="button"
+                                                        variant="default"
+                                                        size="sm"
+                                                        class="bg-blue-light-600 hover:bg-blue-light-700 text-white flex items-center gap-1.5"
+                                                        @click="openFulfillmentModal({{ json_encode($b) }}, 'laundry', '{{ addslashes($inc->service?->name ?? 'Laundry') }}', '{{ $inc->service_id }}')">
+                                                        <span>🧺</span>
+                                                        <span>Terima Cucian (Kg)...</span>
+                                                    </x-ui.button>
+                                                @elseif ($category === 'rental')
+                                                    <x-ui.button
+                                                        type="button"
+                                                        variant="default"
+                                                        size="sm"
+                                                        class="bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-1.5"
+                                                        @click="openFulfillmentModal({{ json_encode($b) }}, 'rental', '{{ addslashes($inc->service?->name ?? 'Rental') }}', '{{ $inc->service_id }}')">
+                                                        <span>🛵</span>
+                                                        <span>Pinjamkan Unit Motor...</span>
+                                                    </x-ui.button>
+                                                @else
+                                                    <!-- Standard 1-Click Quick Claim -->
                                                     <form method="POST" action="{{ route('inclusions.quick-claim', $b->id) }}">
                                                         @csrf
                                                         <input type="hidden" name="inclusion_id" value="{{ $inc->id }}" />
@@ -424,22 +517,14 @@
                                                             Quick Claim (Hadir)
                                                         </x-ui.button>
                                                     </form>
-                                                @endif
-
-                                                <!-- Specific Order Modal Trigger -->
-                                                <x-ui.button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    @click="openFulfillmentModal({{ json_encode($b) }}, '{{ $category }}', '{{ addslashes($inc->service?->name ?? ucfirst($category)) }}')">
-                                                    @if ($category === 'laundry')
-                                                        Terima Cucian...
-                                                    @elseif ($category === 'rental')
-                                                        Pinjamkan Unit...
-                                                    @else
+                                                    <x-ui.button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        @click="openFulfillmentModal({{ json_encode($b) }}, '{{ $category }}', '{{ addslashes($inc->service?->name ?? ucfirst($category)) }}', '{{ $inc->service_id }}')">
                                                         Pesanan Khusus...
-                                                    @endif
-                                                </x-ui.button>
+                                                    </x-ui.button>
+                                                @endif
                                             </div>
                                         @endif
                                     </td>
@@ -453,6 +538,39 @@
 
         <!-- TAB 2: Papan Pemenuhan Antrean (Fulfillment Tracker) -->
         <div x-show="activeTab === 'fulfillment'" class="pt-4" x-cloak>
+            <!-- Guidance Banner: Penjelasan Fungsi Papan Antrean -->
+            <div class="mb-5 rounded-2xl border border-blue-light-200 bg-blue-light-50/60 p-4 dark:border-blue-light-900/40 dark:bg-blue-light-950/20">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-light-500 text-white shadow-theme-xs">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="space-y-1">
+                        <h5 class="text-sm font-semibold text-gray-800 dark:text-white/90">
+                            Fungsi Papan Pemenuhan Antrean (Operational Work-In-Progress)
+                        </h5>
+                        <p class="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+                            Papan ini digunakan oleh Frontdesk, Dapur, Laundry, dan Petugas Rental untuk memantau siklus layanan yang membutuhkan waktu pengerjaan:
+                        </p>
+                        <div class="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3 text-xs">
+                            <div class="rounded-xl border border-blue-light-100 bg-white/80 p-3 shadow-xs dark:border-white/5 dark:bg-white/[0.03]">
+                                <p class="font-semibold text-gray-800 dark:text-white/90">🍳 1. Dapur (Kitchen F&B)</p>
+                                <p class="mt-1 text-gray-500 dark:text-gray-400">Memantau pesanan sarapan khusus yang sedang dimasak. Klik <span class="font-semibold text-success-600 dark:text-success-400">Tandai Selesai</span> saat hidangan disajikan/diantar ke kamar.</p>
+                            </div>
+                            <div class="rounded-xl border border-blue-light-100 bg-white/80 p-3 shadow-xs dark:border-white/5 dark:bg-white/[0.03]">
+                                <p class="font-semibold text-gray-800 dark:text-white/90">🧺 2. Laundry Cucian</p>
+                                <p class="mt-1 text-gray-500 dark:text-gray-400">Memantau cucian yang sedang dicuci/disetrika lengkap dengan berat Kg & nomor kantong. Klik <span class="font-semibold text-success-600 dark:text-success-400">Tandai Selesai</span> saat pakaian bersih diantar ke kamar.</p>
+                            </div>
+                            <div class="rounded-xl border border-blue-light-100 bg-white/80 p-3 shadow-xs dark:border-white/5 dark:bg-white/[0.03]">
+                                <p class="font-semibold text-gray-800 dark:text-white/90">🛵 3. Rental Kendaraan</p>
+                                <p class="mt-1 text-gray-500 dark:text-gray-400">Memantau motor/sepeda yang sedang dibawa tamu beserta nomor polisi & estimasi jam kembali. Klik <span class="font-semibold text-success-600 dark:text-success-400">Tandai Selesai</span> saat kunci unit diterima kembali.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             @if ($activeOrders->isEmpty())
                 <div class="flex flex-col items-center justify-center py-12 text-center">
                     <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-800">
@@ -509,7 +627,16 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3.5 text-xs text-gray-600 dark:text-gray-300">
-                                        {{ $order->notes ?? '-' }}
+                                        <div class="space-y-1">
+                                            @if ($order->notes)
+                                                <p class="font-medium text-gray-800 dark:text-white/90">{{ $order->notes }}</p>
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
+                                            @if ($order->servedBy)
+                                                <p class="text-[11px] text-gray-400">Dicatat oleh: {{ $order->servedBy->name }}</p>
+                                            @endif
+                                        </div>
                                     </td>
 
                                     <!-- Kolom Rincian Biaya & Inklusi -->
@@ -581,8 +708,32 @@
                                                     </x-ui.button>
                                                 </form>
                                             </div>
+                                        @elseif ($order->status === 'delivered')
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <!-- Re-open / Kembalikan ke Antrean Proses -->
+                                                <form method="POST" action="{{ route('inclusions.update-status', $order->id) }}">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="status" value="pending" />
+                                                    <input type="hidden" name="action_note" value="Dikembalikan ke antrean oleh {{ auth()->user()?->name ?? 'Staf' }}" />
+                                                    <x-ui.button type="submit" variant="outline" size="sm" class="text-xs" title="Buka kembali tiket jika masih dalam proses">
+                                                        Proses Ulang
+                                                    </x-ui.button>
+                                                </form>
+
+                                                <!-- Batalkan Klaim -->
+                                                <form method="POST" action="{{ route('inclusions.update-status', $order->id) }}" onsubmit="return confirm('Yakin ingin membatalkan pesanan/klaim ini?')">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="status" value="cancelled" />
+                                                    <input type="hidden" name="action_note" value="Dibatalkan" />
+                                                    <x-ui.button type="submit" variant="ghost" size="sm" class="text-xs text-error-500 hover:text-error-600">
+                                                        Batal
+                                                    </x-ui.button>
+                                                </form>
+                                            </div>
                                         @else
-                                            <span class="text-xs text-gray-400">Tertutup</span>
+                                            <span class="text-xs font-medium text-error-500">Dibatalkan</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -594,13 +745,180 @@
         </div>
     </x-common.component-card>
 
+    <!-- Quick Meal Dialog: Pilih Menu Sarapan Cepat -->
+    <x-ui.dialog id="quickMealDialog" x-ref="quickMealDialog">
+        <x-ui.dialog.content :close-on-overlay="false" class="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <x-ui.dialog.header class="px-6 pt-6 pb-3 shrink-0 border-b border-gray-100 dark:border-gray-800">
+                <x-ui.dialog.title class="flex items-center gap-2">
+                    <span class="text-xl">🍳</span>
+                    <span>Klaim Sarapan — Kamar <span x-text="selectedBooking.room_number"></span></span>
+                </x-ui.dialog.title>
+                <x-ui.dialog.description>
+                    Tamu: <strong class="text-gray-800 dark:text-white" x-text="selectedBooking.guest_name"></strong> &bull;
+                    Hak: <span class="font-medium text-gray-700 dark:text-gray-300" x-text="selectedBooking.inclusion_title"></span>
+                </x-ui.dialog.description>
+            </x-ui.dialog.header>
+
+            <form
+                id="quick-meal-form"
+                :action="'/inclusions/' + quickMealData.booking_id + '/quick-claim'"
+                method="POST"
+                class="flex flex-col flex-1 min-h-0">
+                @csrf
+                <input type="hidden" name="inclusion_id" :value="quickMealData.inclusion_id" />
+                <input type="hidden" name="service_id" :value="quickMealData.service_id" />
+                <input type="hidden" name="claim_date" value="{{ $selectedDate }}" />
+
+                <!-- Scrollable Body Content -->
+                <div class="px-6 py-4 overflow-y-auto custom-scrollbar flex-1 space-y-4 max-h-[60vh] sm:max-h-[66vh]">
+                    <!-- 1. Pilihan Menu -->
+                    <div>
+                        <label class="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                            Pilih Menu Sarapan Tamu:
+                        </label>
+                        <div class="space-y-2">
+                            @foreach ($availableServices->where('category', 'meal') as $mealSrv)
+                                <label
+                                    @click="quickMealData.service_id = '{{ $mealSrv->id }}'; quickMealData.menu_name = '{{ addslashes($mealSrv->name) }}'"
+                                    :class="quickMealData.service_id == '{{ $mealSrv->id }}'
+                                        ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-500/10'
+                                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'"
+                                    class="flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="text-xl">
+                                            @if(str_contains(strtolower($mealSrv->name), 'nasi')) 🍛
+                                            @elseif(str_contains(strtolower($mealSrv->name), 'american') || str_contains(strtolower($mealSrv->name), 'omelet') || str_contains(strtolower($mealSrv->name), 'roti')) 🍳
+                                            @elseif(str_contains(strtolower($mealSrv->name), 'mie')) 🍜
+                                            @else 🍽️ @endif
+                                        </span>
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ $mealSrv->name }}</p>
+                                            <p class="text-xs text-success-600 dark:text-success-400">Tercakup Hak Inklusi (Rp 0)</p>
+                                        </div>
+                                    </div>
+                                    <input
+                                        type="radio"
+                                        name="_meal_choice"
+                                        :checked="quickMealData.service_id == '{{ $mealSrv->id }}'"
+                                        class="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                                    />
+                                </label>
+                            @endforeach
+
+                            <!-- Buffet Prasmanan -->
+                            <label
+                                @click="quickMealData.service_id = '{{ $availableServices->firstWhere('category', 'meal')?->id }}'; quickMealData.menu_name = 'Prasmanan / Buffet Resto'"
+                                :class="quickMealData.menu_name === 'Prasmanan / Buffet Resto'
+                                    ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-500/10'
+                                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'"
+                                class="flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-xl">🥗</span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Prasmanan / Buffet Resto</p>
+                                        <p class="text-xs text-gray-400">Tamu mengambil makanan mandiri di dining area</p>
+                                    </div>
+                                </div>
+                                <input
+                                    type="radio"
+                                    name="_meal_choice"
+                                    :checked="quickMealData.menu_name === 'Prasmanan / Buffet Resto'"
+                                    class="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                                />
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. Tujuan / Status Pemenuhan -->
+                    <x-ui.field>
+                        <x-ui.field.label required>
+                            Alur Pemenuhan & Aksi:
+                        </x-ui.field.label>
+                        <div class="grid grid-cols-1 gap-2">
+                            <!-- Antrean Dapur -->
+                            <label
+                                @click="quickMealData.fulfillment_mode = 'kitchen_queue'"
+                                :class="quickMealData.fulfillment_mode === 'kitchen_queue'
+                                    ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-500/10'
+                                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'"
+                                class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-all">
+                                <input
+                                    type="radio"
+                                    name="fulfillment_mode"
+                                    value="kitchen_queue"
+                                    :checked="quickMealData.fulfillment_mode === 'kitchen_queue'"
+                                    class="mt-0.5 h-4 w-4 text-brand-500 focus:ring-brand-500"
+                                />
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-800 dark:text-white/90">🍳 Kirim ke Antrean Dapur (Sedang Dimasak)</p>
+                                    <p class="text-[11px] text-gray-500 dark:text-gray-400">Status <strong>Pending</strong>. Masuk ke antrean aktif dengan tombol aksi <em>'Tandai Selesai'</em> saat hidangan disajikan/diantar.</p>
+                                </div>
+                            </label>
+
+                            <!-- Tamu Hadir / Selesai Langsung -->
+                            <label
+                                @click="quickMealData.fulfillment_mode = 'instant'"
+                                :class="quickMealData.fulfillment_mode === 'instant'
+                                    ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-500/10'
+                                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'"
+                                class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-all">
+                                <input
+                                    type="radio"
+                                    name="fulfillment_mode"
+                                    value="instant"
+                                    :checked="quickMealData.fulfillment_mode === 'instant'"
+                                    class="mt-0.5 h-4 w-4 text-brand-500 focus:ring-brand-500"
+                                />
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-800 dark:text-white/90">🍽️ Tamu Hadir / Sarapan Langsung (Selesai)</p>
+                                    <p class="text-[11px] text-gray-500 dark:text-gray-400">Status <strong>Selesai</strong> seketika (tamu sudah duduk dan menyantap di resto).</p>
+                                </div>
+                            </label>
+                        </div>
+                    </x-ui.field>
+
+                    <!-- 3. Catatan Tambahan -->
+                    <x-ui.field>
+                        <x-ui.field.label for="quick-meal-notes">
+                            Catatan Khusus / Preferensi Masakan
+                        </x-ui.field.label>
+                        <x-ui.input
+                            type="text"
+                            id="quick-meal-notes"
+                            name="notes"
+                            x-model="quickMealData.custom_notes"
+                            placeholder="Contoh: Telur matang, pedas sedang, tidak pakai bawang..."
+                        />
+                    </x-ui.field>
+                </div>
+
+                <!-- Pinned Footer -->
+                <x-ui.dialog.footer class="mx-0 mb-0 px-6 py-4 shrink-0 border-t border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/40 rounded-b-2xl flex flex-row items-center justify-end gap-3">
+                    <x-ui.button type="button" variant="outline" @click="closeDialog('quickMealDialog')">
+                        Batal
+                    </x-ui.button>
+                    <x-ui.button type="submit" variant="default" class="bg-success-600 hover:bg-success-700 text-white">
+                        Konfirmasi & Klaim
+                    </x-ui.button>
+                </x-ui.dialog.footer>
+            </form>
+        </x-ui.dialog.content>
+    </x-ui.dialog>
+
     <!-- Modal Pemenuhan Layanan Khusus (Fulfillment Dialog) -->
     <x-ui.dialog id="fulfillmentDialog" x-ref="fulfillmentDialog">
-        <x-ui.dialog.content :close-on-overlay="false" class="sm:max-w-lg">
-            <x-ui.dialog.header>
+        <x-ui.dialog.content :close-on-overlay="false" class="sm:max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <x-ui.dialog.header class="px-6 pt-6 pb-3 shrink-0 border-b border-gray-100 dark:border-gray-800">
                 <x-ui.dialog.title class="flex items-center gap-2">
-                    <span class="text-lg">📋</span>
-                    <span>Proses Layanan Pemenuhan Inklusi</span>
+                    <span class="text-lg" x-show="fulfillmentFormData.category_type === 'laundry'">🧺</span>
+                    <span class="text-lg" x-show="fulfillmentFormData.category_type === 'rental'">🛵</span>
+                    <span class="text-lg" x-show="fulfillmentFormData.category_type === 'meal'">🍳</span>
+                    <span class="text-lg" x-show="!['laundry', 'rental', 'meal'].includes(fulfillmentFormData.category_type)">📋</span>
+                    
+                    <span x-show="fulfillmentFormData.category_type === 'laundry'">Form Terima Cucian (Laundry)</span>
+                    <span x-show="fulfillmentFormData.category_type === 'rental'">Form Peminjaman Unit Rental Motor</span>
+                    <span x-show="fulfillmentFormData.category_type === 'meal'">Form Pesanan Dapur / Resto</span>
+                    <span x-show="!['laundry', 'rental', 'meal'].includes(fulfillmentFormData.category_type)">Proses Layanan Pemenuhan Inklusi</span>
                 </x-ui.dialog.title>
                 <x-ui.dialog.description>
                     Kamar <strong class="text-gray-800 dark:text-white" x-text="selectedBooking.room_number"></strong> &bull;
@@ -612,69 +930,259 @@
                 id="fulfillment-form"
                 :action="'/inclusions/' + selectedBooking.id + '/fulfillment-order'"
                 method="POST"
-                class="space-y-4 py-2">
+                class="flex flex-col flex-1 min-h-0">
                 @csrf
                 <input type="hidden" name="category_type" :value="fulfillmentFormData.category_type" />
                 <input type="hidden" name="claim_date" value="{{ $selectedDate }}" />
+                <input type="hidden" name="service_id" id="fulfillment-service-id" :value="fulfillmentFormData.service_id" required />
 
-                <!-- Pilihan Item Layanan -->
-                <x-ui.field>
-                    <x-ui.field.label for="fulfillment-service-trigger" required>
-                        Pilih Menu / Layanan
-                    </x-ui.field.label>
-                    <input type="hidden" name="service_id" id="fulfillment-service-id" x-model="fulfillmentFormData.service_id" required />
-                    <x-ui.select @change="fulfillmentFormData.service_id = $event.detail.value">
-                        <x-ui.select.trigger id="fulfillment-service-trigger">
-                            <x-ui.select.value placeholder="-- Pilih Layanan yang Sesuai --" />
-                        </x-ui.select.trigger>
-                        <x-ui.select.content class="z-102 max-h-56 overflow-y-auto custom-scrollbar">
-                            @foreach ($availableServices as $srv)
-                                <x-ui.select.item value="{{ $srv->id }}">
-                                    {{ $srv->name }} ({{ ucfirst($srv->category) }} - Rp {{ number_format($srv->price, 0, ',', '.') }})
-                                </x-ui.select.item>
-                            @endforeach
-                        </x-ui.select.content>
-                    </x-ui.select>
-                </x-ui.field>
+                <!-- Scrollable Body Content -->
+                <div class="px-6 py-4 overflow-y-auto custom-scrollbar flex-1 space-y-4 max-h-[60vh] sm:max-h-[66vh]">
+                    <!-- Pilihan Item Layanan Berdasarkan Kategori (Dinamis Sesuai Kategori Tombol yang Diklik) -->
+                    
+                    <!-- 1. Kategori Sarapan / Meal -->
+                    <div x-show="fulfillmentFormData.category_type === 'meal'">
+                        <x-ui.field>
+                            <x-ui.field.label for="meal-service-select" required>
+                                Pilih Menu Masakan / Makanan
+                            </x-ui.field.label>
+                            <x-ui.select @change="fulfillmentFormData.service_id = $event.detail.value">
+                                <x-ui.select.trigger id="meal-service-select">
+                                    <x-ui.select.value placeholder="-- Pilih Menu Sarapan --" />
+                                </x-ui.select.trigger>
+                                <x-ui.select.content class="z-102 max-h-56 overflow-y-auto custom-scrollbar">
+                                    @foreach ($availableServices->where('category', 'meal') as $srv)
+                                        <x-ui.select.item value="{{ $srv->id }}">
+                                            {{ $srv->name }} (Rp {{ number_format($srv->price, 0, ',', '.') }})
+                                        </x-ui.select.item>
+                                    @endforeach
+                                </x-ui.select.content>
+                            </x-ui.select>
+                        </x-ui.field>
+                    </div>
 
-                <!-- Jumlah / Porsi / Durasi -->
-                <x-ui.field>
-                    <x-ui.field.label for="fulfillment-qty" required>
-                        Jumlah (Porsi / Pcs / Durasi)
-                    </x-ui.field.label>
-                    <x-ui.input
-                        type="number"
-                        id="fulfillment-qty"
-                        name="quantity"
-                        min="1"
-                        max="20"
-                        x-model="fulfillmentFormData.quantity"
-                        required
-                    />
-                </x-ui.field>
+                    <!-- 2. Kategori Laundry -->
+                    <div x-show="fulfillmentFormData.category_type === 'laundry'">
+                        <x-ui.field>
+                            <x-ui.field.label for="laundry-service-select" required>
+                                Pilih Layanan Laundry
+                            </x-ui.field.label>
+                            <x-ui.select @change="fulfillmentFormData.service_id = $event.detail.value">
+                                <x-ui.select.trigger id="laundry-service-select">
+                                    <x-ui.select.value placeholder="-- Pilih Layanan Laundry --" />
+                                </x-ui.select.trigger>
+                                <x-ui.select.content class="z-102 max-h-56 overflow-y-auto custom-scrollbar">
+                                    @foreach ($availableServices->where('category', 'laundry') as $srv)
+                                        <x-ui.select.item value="{{ $srv->id }}">
+                                            {{ $srv->name }} (Rp {{ number_format($srv->price, 0, ',', '.') }})
+                                        </x-ui.select.item>
+                                    @endforeach
+                                </x-ui.select.content>
+                            </x-ui.select>
+                        </x-ui.field>
+                    </div>
 
-                <!-- Instruksi / Catatan Operasional -->
-                <x-ui.field>
-                    <x-ui.field.label for="fulfillment-notes">
-                        <span x-show="fulfillmentFormData.category_type === 'laundry'">Detail Pakaian & No. Laundry Bag</span>
-                        <span x-show="fulfillmentFormData.category_type === 'rental'">Nomor Unit Kendaraan & Estimasi Jam Kembali</span>
-                        <span x-show="fulfillmentFormData.category_type === 'meal'">Catatan Masakan / Preferensi Tamu</span>
-                        <span x-show="!['laundry', 'rental', 'meal'].includes(fulfillmentFormData.category_type)">Catatan Tambahan</span>
-                    </x-ui.field.label>
-                    <x-ui.textarea
-                        id="fulfillment-notes"
-                        name="detail_notes"
-                        rows="3"
-                        x-model="fulfillmentFormData.detail_notes"
-                        placeholder="Contoh: 3 kemeja, no bag LB-02 / Unit Sepeda 02 s/d 11:30 / Omelet pedas tanpa bawang..."
-                    ></x-ui.textarea>
-                </x-ui.field>
+                    <!-- 3. Kategori Rental -->
+                    <div x-show="fulfillmentFormData.category_type === 'rental'">
+                        <x-ui.field>
+                            <x-ui.field.label for="rental-service-select" required>
+                                Pilih Paket Sewa Kendaraan
+                            </x-ui.field.label>
+                            <x-ui.select @change="fulfillmentFormData.service_id = $event.detail.value">
+                                <x-ui.select.trigger id="rental-service-select">
+                                    <x-ui.select.value placeholder="-- Pilih Layanan Rental --" />
+                                </x-ui.select.trigger>
+                                <x-ui.select.content class="z-102 max-h-56 overflow-y-auto custom-scrollbar">
+                                    @foreach ($availableServices->where('category', 'rental') as $srv)
+                                        <x-ui.select.item value="{{ $srv->id }}">
+                                            {{ $srv->name }} (Rp {{ number_format($srv->price, 0, ',', '.') }})
+                                        </x-ui.select.item>
+                                    @endforeach
+                                </x-ui.select.content>
+                            </x-ui.select>
+                        </x-ui.field>
+                    </div>
 
-                <div class="rounded-xl border border-blue-light-200 bg-blue-light-50/50 p-3 text-xs text-blue-light-700 dark:border-blue-light-900/40 dark:bg-blue-light-950/20 dark:text-blue-light-300">
-                    💡 Sistem otomatis menghitung potongan 100% jika sesuai hak paket inklusi harian kamar. Kelebihan kuota akan otomatis ditagihkan ke folio kamar.
+                    <!-- 4. Kategori Lainnya (Minuman, Amenitas, dll) -->
+                    <div x-show="!['meal', 'laundry', 'rental'].includes(fulfillmentFormData.category_type)">
+                        <x-ui.field>
+                            <x-ui.field.label for="other-service-select" required>
+                                Pilih Layanan / Item
+                            </x-ui.field.label>
+                            <x-ui.select @change="fulfillmentFormData.service_id = $event.detail.value">
+                                <x-ui.select.trigger id="other-service-select">
+                                    <x-ui.select.value placeholder="-- Pilih Layanan Lainnya --" />
+                                </x-ui.select.trigger>
+                                <x-ui.select.content class="z-102 max-h-56 overflow-y-auto custom-scrollbar">
+                                    @foreach ($availableServices->whereNotIn('category', ['meal', 'laundry', 'rental']) as $srv)
+                                        <x-ui.select.item value="{{ $srv->id }}">
+                                            {{ $srv->name }} ({{ ucfirst($srv->category) }} - Rp {{ number_format($srv->price, 0, ',', '.') }})
+                                        </x-ui.select.item>
+                                    @endforeach
+                                </x-ui.select.content>
+                            </x-ui.select>
+                        </x-ui.field>
+                    </div>
+
+                    <!-- Bidang Khusus LAUNDRY: Berat Kg & Nomor Bag -->
+                    <div x-show="fulfillmentFormData.category_type === 'laundry'" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <x-ui.field>
+                            <x-ui.field.label for="fulfillment-weight" required>
+                                Berat Cucian (Kg)
+                            </x-ui.field.label>
+                            <x-ui.input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                max="50"
+                                id="fulfillment-weight"
+                                name="weight_kg"
+                                x-model="fulfillmentFormData.weight_kg"
+                                placeholder="Contoh: 2.5"
+                            />
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                Hitungan allowance otomatis dibulatkan sesuai Kg.
+                            </p>
+                        </x-ui.field>
+
+                        <x-ui.field>
+                            <x-ui.field.label for="fulfillment-bag">
+                                No. / Tag Laundry Bag
+                            </x-ui.field.label>
+                            <x-ui.input
+                                type="text"
+                                id="fulfillment-bag"
+                                name="laundry_bag_no"
+                                x-model="fulfillmentFormData.laundry_bag_no"
+                                placeholder="Contoh: LB-04 / Kantong Biru"
+                            />
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                Label identifikasi saat dicuci & disetrika.
+                            </p>
+                        </x-ui.field>
+                    </div>
+
+                    <!-- Bidang Khusus RENTAL: Unit Kendaraan & No. Polisi & Estimasi Kembali -->
+                    <div x-show="fulfillmentFormData.category_type === 'rental'" class="space-y-4">
+                        <x-ui.field>
+                            <x-ui.field.label for="fulfillment-unit" required>
+                                Unit Kendaraan & Nomor Polisi
+                            </x-ui.field.label>
+                            <x-ui.input
+                                type="text"
+                                id="fulfillment-unit"
+                                name="unit_info"
+                                x-model="fulfillmentFormData.unit_info"
+                                placeholder="Contoh: Honda Vario 125 (DK 5543 XY)"
+                            />
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                Sebutkan jenis motor/sepeda dan plat nomor yang diserahkan.
+                            </p>
+                        </x-ui.field>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <x-ui.field>
+                                <x-ui.field.label for="fulfillment-rental-qty" required>
+                                Durasi Sewa (Hari)
+                                </x-ui.field.label>
+                                <x-ui.input
+                                    type="number"
+                                    id="fulfillment-rental-qty"
+                                    name="quantity"
+                                    min="1"
+                                    max="14"
+                                    x-model="fulfillmentFormData.quantity"
+                                />
+                            </x-ui.field>
+
+                            <x-ui.field>
+                                <x-ui.field.label for="fulfillment-return-time">
+                                    Estimasi Jam / Waktu Kembali
+                                </x-ui.field.label>
+                                <x-ui.input
+                                    type="text"
+                                    id="fulfillment-return-time"
+                                    name="return_time"
+                                    x-model="fulfillmentFormData.return_time"
+                                    placeholder="Contoh: Hari ini 18:00 / Besok pagi"
+                                />
+                            </x-ui.field>
+                        </div>
+                    </div>
+
+                    <!-- Bidang Khusus MEAL: Porsi & Preferensi -->
+                    <div x-show="fulfillmentFormData.category_type === 'meal'" class="space-y-4">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <x-ui.field>
+                                <x-ui.field.label for="fulfillment-meal-qty" required>
+                                    Jumlah Porsi
+                                </x-ui.field.label>
+                                <x-ui.input
+                                    type="number"
+                                    id="fulfillment-meal-qty"
+                                    name="quantity"
+                                    min="1"
+                                    max="10"
+                                    x-model="fulfillmentFormData.quantity"
+                                />
+                            </x-ui.field>
+
+                            <x-ui.field>
+                                <x-ui.field.label for="fulfillment-meal-pref">
+                                    Preferensi Masakan
+                                </x-ui.field.label>
+                                <x-ui.input
+                                    type="text"
+                                    id="fulfillment-meal-pref"
+                                    name="meal_preference"
+                                    x-model="fulfillmentFormData.meal_preference"
+                                    placeholder="Contoh: Telur matang, pedas sedang"
+                                />
+                            </x-ui.field>
+                        </div>
+                    </div>
+
+                    <!-- Bidang Kategori Non-Rental/Laundry/Meal: Jumlah Item -->
+                    <div x-show="!['laundry', 'rental', 'meal'].includes(fulfillmentFormData.category_type)">
+                        <x-ui.field>
+                            <x-ui.field.label for="fulfillment-qty" required>
+                                Jumlah (Pcs / Porsi)
+                            </x-ui.field.label>
+                            <x-ui.input
+                                type="number"
+                                id="fulfillment-qty"
+                                name="quantity"
+                                min="1"
+                                max="20"
+                                x-model="fulfillmentFormData.quantity"
+                            />
+                        </x-ui.field>
+                    </div>
+
+                    <!-- Catatan Tambahan / Operasional -->
+                    <x-ui.field>
+                        <x-ui.field.label for="fulfillment-notes">
+                            <span x-show="fulfillmentFormData.category_type === 'laundry'">Rincian Pakaian & Catatan Khusus Laundry</span>
+                            <span x-show="fulfillmentFormData.category_type === 'rental'">Kelengkapan Unit (Helm/Jas Hujan/Kondisi)</span>
+                            <span x-show="fulfillmentFormData.category_type === 'meal'">Instruksi Antar / Catatan Resto</span>
+                            <span x-show="!['laundry', 'rental', 'meal'].includes(fulfillmentFormData.category_type)">Catatan Tambahan</span>
+                        </x-ui.field.label>
+                        <x-ui.textarea
+                            id="fulfillment-notes"
+                            name="detail_notes"
+                            rows="2"
+                            x-model="fulfillmentFormData.detail_notes"
+                            placeholder="Contoh: 3 kemeja, 2 celana / 2 helm SNI + jas hujan / Antar ke kamar jam 07:30..."
+                        ></x-ui.textarea>
+                    </x-ui.field>
+
+                    <div class="rounded-xl border border-blue-light-200 bg-blue-light-50/50 p-3 text-xs text-blue-light-700 dark:border-blue-light-900/40 dark:bg-blue-light-950/20 dark:text-blue-light-300">
+                        💡 Sistem otomatis menghitung potongan 100% jika sesuai hak paket inklusi harian kamar. Kelebihan kuota akan otomatis ditagihkan ke folio kamar.
+                    </div>
                 </div>
 
-                <x-ui.dialog.footer class="mt-4 flex justify-end gap-2">
+                <!-- Pinned Footer -->
+                <x-ui.dialog.footer class="mx-0 mb-0 px-6 py-4 shrink-0 border-t border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/40 rounded-b-2xl flex flex-row items-center justify-end gap-3">
                     <x-ui.button type="button" variant="outline" @click="closeDialog('fulfillmentDialog')">
                         Batal
                     </x-ui.button>

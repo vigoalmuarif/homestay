@@ -61,6 +61,30 @@ class Booking extends Model
     }
 
     /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Booking $booking) {
+            $nights = max(1, (int) ($booking->total_nights ?: 1));
+            $roomRate = (float) ($booking->room_price_snapshot ?? 0);
+            $roomCharge = $roomRate * $nights;
+            $extraCharges = $booking->exists ? $booking->total_extra_charges : 0.00;
+            $grossTotal = $roomCharge + $extraCharges;
+            $deposit = (float) ($booking->deposit_amount ?? 0.00);
+            $balanceDue = max(0.00, $grossTotal - $deposit);
+
+            if ($balanceDue <= 0.00 && ($deposit > 0 || $grossTotal == 0)) {
+                $booking->payment_status = 'paid';
+            } elseif ($deposit > 0 && $balanceDue > 0) {
+                $booking->payment_status = 'partial';
+            } elseif ($deposit <= 0.00 && $grossTotal > 0 && $booking->payment_status !== 'paid') {
+                $booking->payment_status = 'unpaid';
+            }
+        });
+    }
+
+    /**
      * Generate unique booking code.
      */
     public static function generateCode(): string
@@ -136,6 +160,33 @@ class Booking extends Model
     public function getBalanceDueAttribute(): float
     {
         return max(0, $this->grand_total - (float) $this->deposit_amount);
+    }
+
+    /**
+     * Compute and synchronize payment status based on current deposit vs grand total.
+     */
+    public function syncPaymentStatus(bool $save = true): string
+    {
+        $deposit = (float) $this->deposit_amount;
+        $grossTotal = (float) $this->grand_total;
+        $balanceDue = max(0.00, $grossTotal - $deposit);
+
+        if ($balanceDue <= 0.00 && ($deposit > 0 || $grossTotal == 0)) {
+            $status = 'paid';
+        } elseif ($deposit > 0 && $balanceDue > 0) {
+            $status = 'partial';
+        } else {
+            $status = 'unpaid';
+        }
+
+        if ($this->payment_status !== $status) {
+            $this->payment_status = $status;
+            if ($save && $this->exists) {
+                $this->saveQuietly();
+            }
+        }
+
+        return $status;
     }
 
     /**

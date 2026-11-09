@@ -229,7 +229,14 @@
                                 $deposit = (float) ($b->deposit_amount ?? 0);
                                 $balanceDue = max(0, $grossTotal - $deposit);
 
-                                $payBadge = match ($b->payment_status) {
+                                $effectiveStatus = $b->payment_status;
+                                if ($balanceDue <= 0 && ($deposit > 0 || $grossTotal == 0)) {
+                                    $effectiveStatus = 'paid';
+                                } elseif ($deposit > 0 && $balanceDue > 0) {
+                                    $effectiveStatus = 'partial';
+                                }
+
+                                $payBadge = match ($effectiveStatus) {
                                     'paid' => ['color' => 'success', 'label' => 'Lunas (Paid)'],
                                     'partial' => ['color' => 'warning', 'label' => 'Partial (DP)'],
                                     default => ['color' => 'error', 'label' => 'Belum Lunas'],

@@ -89,16 +89,19 @@ class InclusionClaimController extends Controller
 
                 // Check if this inclusion has been claimed on the selected date in booking_items
                 $claimedItem = $booking->items->first(function ($item) use ($inc) {
-                    if (!$item->is_free_inclusion && $item->discount_or_allowance <= 0) {
-                        return false;
-                    }
                     if ($inc->service_id && $item->service_id === $inc->service_id) {
                         return true;
                     }
                     if ($inc->category === 'any') {
                         return true;
                     }
-                    return $item->service?->category === $inc->category;
+                    if ($item->service?->category === $inc->category) {
+                        return true;
+                    }
+                    if (str_contains(strtolower($item->item_name), 'inklusi ' . strtolower($inc->category))) {
+                        return true;
+                    }
+                    return false;
                 });
 
                 $isClaimed = $claimedItem !== null;
@@ -130,12 +133,14 @@ class InclusionClaimController extends Controller
 
         // 4. Available Services categorized for the claim popup modals
         $availableServices = Service::active()->orderBy('category')->orderBy('name')->get();
+        $availableServicesGrouped = $availableServices->groupBy('category');
 
         return view('pages.services.claim-desk', [
             'title' => 'Pusat Klaim Inklusi & Fulfillment',
             'guestInclusionList' => $guestInclusionList,
             'activeOrders' => $activeOrders,
             'availableServices' => $availableServices,
+            'availableServicesGrouped' => $availableServicesGrouped,
             'stats' => [
                 'in_house_count' => $allInHouseBookings->count(),
                 'total_entitled' => $totalEntitledPax,
@@ -163,8 +168,11 @@ class InclusionClaimController extends Controller
         }
 
         // Determine which service to link to this item
+        $serviceId = $request->input('service_id');
         $service = null;
-        if ($inclusion->service_id) {
+        if ($serviceId) {
+            $service = Service::find($serviceId);
+        } elseif ($inclusion->service_id) {
             $service = Service::find($inclusion->service_id);
         } else {
             // Pick default service matching the category or create an automatic entry
@@ -176,30 +184,52 @@ class InclusionClaimController extends Controller
             return back()->withErrors(['error' => 'Layanan master untuk kategori ini belum tersedia.']);
         }
 
-        $claimDate = $request->input('claim_date');
-        $claimTimestamp = $claimDate ? Carbon::parse($claimDate)->setTimeFrom(now()) : now();
+        $quantity = max(1, (int) $request->input('quantity', 1));
+        $claimDate = $request->input('claim_date') ?: Carbon::today()->toDateString();
+        $claimTimestamp = Carbon::parse($claimDate)->setTimeFrom(now());
+
+        $calc = $orderService->calculateInclusion($booking, $service, $quantity, $claimDate, $inclusion);
+
+        $allowanceLimit = (float) $inclusion->allowance_limit;
+        if ($allowanceLimit <= 0.0) {
+            $calc['is_free_inclusion'] = true;
+            $calc['discount_or_allowance'] = (float) $service->price * $quantity;
+            $calc['subtotal'] = 0.00;
+        }
+
+        $fulfillmentMode = $request->input('fulfillment_mode', 'instant');
+        $status = ($fulfillmentMode === 'kitchen_queue') ? 'pending' : 'delivered';
+
+        $customNote = $request->input('notes') ?? $request->input('detail_notes');
+        $prefix = ($status === 'pending') ? '[Pesanan Dapur]' : '[Klaim Hadir]';
+        $finalNote = $customNote
+            ? "{$prefix} {$customNote}"
+            : "{$prefix} Dicatat pada " . Carbon::now()->format('H:i') . ' WIB';
 
         try {
-            DB::transaction(function () use ($booking, $service, $inclusion, $claimTimestamp) {
-                BookingItem::create([
+            DB::transaction(function () use ($booking, $service, $inclusion, $quantity, $calc, $status, $finalNote, $claimTimestamp) {
+                $item = new BookingItem([
                     'booking_id' => $booking->id,
                     'service_id' => $service->id,
                     'item_name' => $service->name . ' (Inklusi ' . ucfirst($inclusion->category) . ')',
-                    'quantity' => 1,
-                    'unit_price' => $service->price,
-                    'discount_or_allowance' => $service->price,
-                    'subtotal' => 0.00,
+                    'quantity' => $quantity,
+                    'unit_price' => $calc['unit_price'],
+                    'discount_or_allowance' => $calc['discount_or_allowance'],
+                    'subtotal' => $calc['subtotal'],
                     'billing_type' => 'charged_to_room',
-                    'status' => 'delivered', // Instant fulfillment
-                    'is_free_inclusion' => true,
-                    'notes' => 'Klaim Langsung (Quick Claim) pada ' . Carbon::now()->format('H:i') . ' WIB',
+                    'status' => $status,
+                    'is_free_inclusion' => $calc['is_free_inclusion'],
+                    'notes' => $finalNote,
                     'served_by' => auth()->id(),
-                    'created_at' => $claimTimestamp,
-                    'updated_at' => $claimTimestamp,
                 ]);
+                $item->created_at = $claimTimestamp;
+                $item->updated_at = $claimTimestamp;
+                $item->save();
             });
 
-            return back()->with('success', "Klaim '{$inclusion->category}' untuk Kamar {$booking->room?->room_number} berhasil dicatat (Rp 0).");
+            $statusMsg = ($status === 'pending') ? 'masuk antrean dapur' : 'selesai disajikan';
+            return redirect()->route('inclusions.claim-desk', ['date' => $claimDate])
+                ->with('success', "Klaim '{$service->name}' untuk Kamar {$booking->room?->room_number} berhasil dicatat ({$statusMsg}).");
         } catch (Exception $e) {
             return back()->withErrors(['error' => 'Gagal memproses klaim: ' . $e->getMessage()]);
         }
@@ -212,16 +242,31 @@ class InclusionClaimController extends Controller
     {
         $validated = $request->validate([
             'service_id' => 'required|exists:services,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'nullable|integer|min:1',
             'detail_notes' => 'nullable|string|max:255',
             'category_type' => 'required|string|in:meal,beverage,laundry,rental,amenity,other',
+            'claim_date' => 'nullable|date',
+            'meal_menu' => 'nullable|string|max:255',
+            'meal_preference' => 'nullable|string|max:255',
+            'unit_info' => 'nullable|string|max:255',
+            'return_time' => 'nullable|string|max:100',
+            'weight_kg' => 'nullable|numeric|min:0.1',
+            'laundry_bag_no' => 'nullable|string|max:100',
         ]);
 
         $service = Service::findOrFail($validated['service_id']);
-        $quantity = (int) $validated['quantity'];
+        
+        // Compute quantity
+        $quantity = (int) ($validated['quantity'] ?? 1);
+        if ($validated['category_type'] === 'laundry' && !empty($validated['weight_kg'])) {
+            $quantity = max(1, (int) ceil((float) $validated['weight_kg']));
+        }
 
-        // Calculate allowance using RoomOrderService
-        $calc = $orderService->calculateInclusion($booking, $service, $quantity);
+        $claimDate = $validated['claim_date'] ?? $request->input('claim_date');
+        $claimTimestamp = $claimDate ? Carbon::parse($claimDate)->setTimeFrom(now()) : now();
+
+        // Calculate allowance using RoomOrderService with the target claim date
+        $calc = $orderService->calculateInclusion($booking, $service, $quantity, $claimTimestamp);
 
         $status = match ($validated['category_type']) {
             'laundry' => 'pending', // Sedang Dicuci
@@ -237,17 +282,43 @@ class InclusionClaimController extends Controller
             default => '[Inklusi Khusus]',
         };
 
-        $note = $prefix . ' ' . ($validated['detail_notes'] ?? 'Order via Fulfillment Desk');
+        $details = [];
+        if (!empty($validated['meal_menu'])) {
+            $details[] = "Menu: " . $validated['meal_menu'];
+        }
+        if (!empty($validated['meal_preference'])) {
+            $details[] = "Catatan: " . $validated['meal_preference'];
+        }
+        if (!empty($validated['unit_info'])) {
+            $details[] = "Unit: " . $validated['unit_info'];
+        }
+        if (!empty($validated['return_time'])) {
+            $details[] = "Estimasi Kembali: " . $validated['return_time'];
+        }
+        if (!empty($validated['weight_kg'])) {
+            $details[] = "Berat: " . $validated['weight_kg'] . " Kg";
+        }
+        if (!empty($validated['laundry_bag_no'])) {
+            $details[] = "No. Bag: " . $validated['laundry_bag_no'];
+        }
+        if (!empty($validated['detail_notes'])) {
+            $details[] = $validated['detail_notes'];
+        }
 
-        $claimDate = $request->input('claim_date');
-        $claimTimestamp = $claimDate ? Carbon::parse($claimDate)->setTimeFrom(now()) : now();
+        $detailStr = !empty($details) ? implode(' | ', $details) : 'Order via Fulfillment Desk';
+        $note = $prefix . ' ' . $detailStr;
+
+        $itemName = $service->name;
+        if (!empty($validated['meal_menu'])) {
+            $itemName = substr("{$service->name} ({$validated['meal_menu']})", 0, 150);
+        }
 
         try {
-            DB::transaction(function () use ($booking, $service, $quantity, $calc, $status, $note, $claimTimestamp) {
+            DB::transaction(function () use ($booking, $service, $itemName, $quantity, $calc, $status, $note, $claimTimestamp) {
                 BookingItem::create([
                     'booking_id' => $booking->id,
                     'service_id' => $service->id,
-                    'item_name' => $service->name,
+                    'item_name' => $itemName,
                     'quantity' => $quantity,
                     'unit_price' => $calc['unit_price'],
                     'discount_or_allowance' => $calc['discount_or_allowance'],
@@ -266,7 +337,9 @@ class InclusionClaimController extends Controller
                 ? 'Tercakup Paket Inklusi (Rp 0)'
                 : 'Sebagian/Total dikenakan biaya Rp ' . number_format($calc['subtotal'], 0, ',', '.');
 
-            return back()->with('success', "Pesanan '{$service->name}' untuk Kamar {$booking->room?->room_number} berhasil dibuat ({$coverMsg}) dan masuk antrean.");
+            $redirectDate = $claimTimestamp->format('Y-m-d');
+            return redirect()->route('inclusions.claim-desk', ['date' => $redirectDate])
+                ->with('success', "Pesanan '{$itemName}' untuk Kamar {$booking->room?->room_number} berhasil dibuat ({$coverMsg}) dan masuk antrean.");
         } catch (Exception $e) {
             return back()->withErrors(['error' => 'Gagal membuat pesanan layanan: ' . $e->getMessage()]);
         }

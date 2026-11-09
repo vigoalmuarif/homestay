@@ -14,13 +14,19 @@ class RoomOrderService
     /**
      * Calculate package inclusion allowance for a service against the booking room type.
      */
-    public function calculateInclusion(Booking $booking, Service $service, int $quantity): array
+    public function calculateInclusion(
+        Booking $booking,
+        Service $service,
+        int $quantity,
+        ?string $targetDate = null,
+        ?RoomTypeServiceInclusion $specificInclusion = null
+    ): array
     {
         $roomTypeId = $booking->room?->room_type_id;
         $unitPrice = (float) $service->price;
         $totalOriginal = $unitPrice * $quantity;
 
-        if (!$roomTypeId) {
+        if (!$roomTypeId && !$specificInclusion) {
             return [
                 'is_free_inclusion' => false,
                 'unit_price' => $unitPrice,
@@ -30,34 +36,41 @@ class RoomOrderService
             ];
         }
 
-        // Check for specific service inclusion or category matching inclusion
-        $inclusions = RoomTypeServiceInclusion::where('room_type_id', $roomTypeId)
-            ->where(function ($q) use ($service) {
-                $q->where('service_id', $service->id)
-                    ->orWhere(function ($sub) use ($service) {
-                        $sub->whereNull('service_id')
-                            ->whereIn('category', [$service->category, 'any']);
-                    });
-            })
-            ->get();
+        if ($specificInclusion) {
+            $inclusion = $specificInclusion;
+        } else {
+            // Check for specific service inclusion or category matching inclusion
+            $inclusions = RoomTypeServiceInclusion::where('room_type_id', $roomTypeId)
+                ->where(function ($q) use ($service) {
+                    $q->where('service_id', $service->id)
+                        ->orWhere(function ($sub) use ($service) {
+                            $sub->whereNull('service_id')
+                                ->whereIn('category', [$service->category, 'any']);
+                        });
+                })
+                ->get();
 
-        $inclusion = $inclusions->sortByDesc(function ($inc) use ($service) {
-            if ($inc->service_id === $service->id) return 100;
-            if ($inc->session_time && $service->sub_category && $inc->session_time === $service->sub_category) return 50;
-            if ($inc->category === $service->category) return 10;
-            return 1;
-        })->first(function ($inc) use ($service) {
-            if ($inc->service_id) {
-                return $inc->service_id === $service->id;
-            }
-            if ($inc->category !== 'any' && $inc->category !== $service->category) {
-                return false;
-            }
-            if ($inc->session_time && $service->sub_category) {
-                return $inc->session_time === $service->sub_category;
-            }
-            return true;
-        });
+            $inclusion = $inclusions->sortByDesc(function ($inc) use ($service) {
+                if ($inc->service_id === $service->id) return 100;
+                if ($inc->session_time && $service->sub_category && $inc->session_time === $service->sub_category) return 50;
+                if ($inc->category === $service->category) return 10;
+                return 1;
+            })->first(function ($inc) use ($service) {
+                if ($inc->service_id) {
+                    return $inc->service_id === $service->id;
+                }
+                if ($inc->category !== 'any' && $inc->category !== $service->category) {
+                    return false;
+                }
+                $mealSessions = ['breakfast', 'lunch', 'dinner'];
+                if ($inc->session_time && $service->sub_category &&
+                    in_array($inc->session_time, $mealSessions) &&
+                    in_array($service->sub_category, $mealSessions)) {
+                    return $inc->session_time === $service->sub_category;
+                }
+                return true;
+            });
+        }
 
         if (!$inclusion) {
             return [
@@ -96,7 +109,8 @@ class RoomOrderService
             });
 
         if ($isDailyEntitlement) {
-            $alreadyClaimedQuery->whereDate('created_at', now()->toDateString());
+            $dateCheck = $targetDate ? \Carbon\Carbon::parse($targetDate)->toDateString() : now()->toDateString();
+            $alreadyClaimedQuery->whereDate('created_at', $dateCheck);
         }
 
         if ($alreadyClaimedQuery->exists()) {

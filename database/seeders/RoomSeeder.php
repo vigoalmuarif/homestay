@@ -44,20 +44,20 @@ class RoomSeeder extends Seeder
         // 2. Seed Physical Rooms
         $rooms = [
             // Lantai 1
-            ['room_type_id' => $vip->id, 'room_number' => '101', 'status' => 'occupied', 'floor' => 'Lantai 1', 'notes' => 'Tamu check-in kemarin'],
-            ['room_type_id' => $vip->id, 'room_number' => '102', 'status' => 'dirty', 'floor' => 'Lantai 1', 'notes' => 'Tamu baru saja check-out jam 12:00'],
+            ['room_type_id' => $vip->id, 'room_number' => '101', 'status' => 'available', 'floor' => 'Lantai 1', 'notes' => 'Tamu check-in kemarin'],
+            ['room_type_id' => $vip->id, 'room_number' => '102', 'status' => 'available', 'floor' => 'Lantai 1', 'notes' => 'Tamu baru saja check-out jam 12:00'],
             ['room_type_id' => $deluxe->id, 'room_number' => '103', 'status' => 'available', 'floor' => 'Lantai 1', 'notes' => null],
             ['room_type_id' => $deluxe->id, 'room_number' => '104', 'status' => 'available', 'floor' => 'Lantai 1', 'notes' => null],
-            ['room_type_id' => $standard->id, 'room_number' => '105', 'status' => 'occupied', 'floor' => 'Lantai 1', 'notes' => null],
+            ['room_type_id' => $standard->id, 'room_number' => '105', 'status' => 'available', 'floor' => 'Lantai 1', 'notes' => null],
             ['room_type_id' => $standard->id, 'room_number' => '106', 'status' => 'available', 'floor' => 'Lantai 1', 'notes' => null],
 
             // Lantai 2
-            ['room_type_id' => $deluxe->id, 'room_number' => '201', 'status' => 'occupied', 'floor' => 'Lantai 2', 'notes' => null],
+            ['room_type_id' => $deluxe->id, 'room_number' => '201', 'status' => 'available', 'floor' => 'Lantai 2', 'notes' => null],
             ['room_type_id' => $deluxe->id, 'room_number' => '202', 'status' => 'available', 'floor' => 'Lantai 2', 'notes' => null],
-            ['room_type_id' => $standard->id, 'room_number' => '203', 'status' => 'dirty', 'floor' => 'Lantai 2', 'notes' => 'Perlu ganti sprei & handuk'],
-            ['room_type_id' => $standard->id, 'room_number' => '204', 'status' => 'occupied', 'floor' => 'Lantai 2', 'notes' => null],
+            ['room_type_id' => $standard->id, 'room_number' => '203', 'status' => 'available', 'floor' => 'Lantai 2', 'notes' => 'Perlu ganti sprei & handuk'],
+            ['room_type_id' => $standard->id, 'room_number' => '204', 'status' => 'available', 'floor' => 'Lantai 2', 'notes' => null],
             ['room_type_id' => $standard->id, 'room_number' => '205', 'status' => 'available', 'floor' => 'Lantai 2', 'notes' => null],
-            ['room_type_id' => $standard->id, 'room_number' => '206', 'status' => 'maintenance', 'floor' => 'Lantai 2', 'notes' => 'Perbaikan AC & kran wastafel bocor'],
+            ['room_type_id' => $standard->id, 'room_number' => '206', 'status' => 'available', 'floor' => 'Lantai 2', 'notes' => 'Perbaikan AC & kran wastafel bocor'],
         ];
 
         foreach ($rooms as $room) {

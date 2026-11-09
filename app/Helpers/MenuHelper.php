@@ -55,6 +55,14 @@ class MenuHelper
             //     'permission' => 'view housekeeping',
             // ],
             [
+                'icon' => 'operational',
+                'name' => 'Operasional',
+                'subItems' => [
+                    ['name' => 'Pemasukan Umum', 'path' => '/operational/incomes', 'permission' => 'view operational'],
+                    ['name' => 'Pengeluaran Umum', 'path' => '/operational/expenses', 'permission' => 'view operational'],
+                ],
+            ],
+            [
                 'icon' => 'charts',
                 'name' => 'Keuangan & Laporan',
                 'subItems' => [
@@ -62,12 +70,12 @@ class MenuHelper
                     ['name' => 'Laporan Rekapitulasi', 'path' => '/reports', 'permission' => 'view reports'],
                 ],
             ],
-            [
-                'icon' => 'users',
-                'name' => 'Kelola Petugas & Role',
-                'path' => '/users',
-                'role' => 'admin',
-            ],
+            // [
+            //     'icon' => 'users',
+            //     'name' => 'Kelola Petugas & Role',
+            //     'path' => '/users',
+            //     'role' => 'admin',
+            // ],
         ];
 
         return self::filterAccessibleItems($items);
@@ -200,6 +208,7 @@ class MenuHelper
             'users' => 'users',
             'task' => 'task',
             'calendar' => 'calendar',
+            'operational' => 'list',
         ];
 
         $target = $map[$icon] ?? $icon;

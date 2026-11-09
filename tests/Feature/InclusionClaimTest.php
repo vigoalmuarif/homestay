@@ -176,3 +176,68 @@ test('claim desk can filter bookings and orders by date', function () {
     $response->assertStatus(200);
     $response->assertSee('2026-11-10');
 });
+
+test('quick claim on past date persists past created_at and redirects with past date', function () {
+    $user = $this->user;
+
+    $customer = Customer::create([
+        'full_name' => 'Past Guest',
+        'email' => 'past@example.com',
+        'phone_number' => '081233344455',
+    ]);
+
+    $roomType = RoomType::create([
+        'name' => 'Past Suite',
+        'code' => 'PS-01',
+        'base_price' => 400000,
+        'capacity_adult' => 2,
+        'capacity_child' => 0,
+    ]);
+
+    $room = Room::create([
+        'room_number' => '109',
+        'room_type_id' => $roomType->id,
+        'floor' => 'Lantai 1',
+        'status' => 'occupied',
+    ]);
+
+    $pastDate = '2026-11-05';
+
+    $booking = Booking::create([
+        'booking_code' => 'BK-PAST-01',
+        'customer_id' => $customer->id,
+        'room_id' => $room->id,
+        'check_in_date' => '2026-11-04 14:00:00',
+        'check_out_date' => '2026-11-08 12:00:00',
+        'total_nights' => 4,
+        'room_price_snapshot' => 400000,
+        'status' => 'checked_in',
+    ]);
+
+    $mealService = Service::create([
+        'name' => 'Nasi Goreng Spesial',
+        'category' => 'meal',
+        'price' => 30000,
+        'has_stock' => false,
+        'is_active' => true,
+    ]);
+
+    $inclusion = RoomTypeServiceInclusion::create([
+        'room_type_id' => $roomType->id,
+        'service_id' => $mealService->id,
+        'category' => 'meal',
+        'allowance_limit' => 0.00,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('inclusions.quick-claim', $booking->id), [
+        'inclusion_id' => $inclusion->id,
+        'service_id' => $mealService->id,
+        'claim_date' => $pastDate,
+    ]);
+
+    $response->assertRedirect(route('inclusions.claim-desk', ['date' => $pastDate]));
+
+    $item = BookingItem::where('booking_id', $booking->id)->first();
+    expect($item)->not->toBeNull();
+    expect($item->created_at->format('Y-m-d'))->toBe($pastDate);
+});

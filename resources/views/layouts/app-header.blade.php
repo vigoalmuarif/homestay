@@ -12,7 +12,8 @@
             class="flex w-full items-center justify-between gap-2 border-b border-gray-200 px-3 py-3 sm:gap-4 xl:justify-normal xl:border-b-0 xl:px-0 xl:py-4 dark:border-gray-800">
 
             <!-- Desktop sidebar toggle (xl and up) -->
-            <x-ui.button variant="outline" size="icon" class="hidden text-gray-500 xl:inline-flex lg:size-11 dark:text-gray-400"
+            <x-ui.button variant="outline" size="icon"
+                class="hidden text-gray-500 xl:inline-flex lg:size-11 dark:text-gray-400"
                 aria-label="{{ __('header.toggleSidebar') }}" @click.stop="$store.sidebar.toggleExpanded()">
                 <x-svg.menu-two class="size-auto! rtl:-scale-x-100" />
             </x-ui.button>
@@ -26,8 +27,9 @@
 
             <!-- Logo (mobile only) -->
             <a href="/" class="xl:hidden">
-                <img width="154" height="32" class="dark:hidden" src="/assets/images/logo/logo.svg" alt="Logo" />
-                <img width="154" height="32" class="hidden dark:block" src="/assets/images/logo/logo-dark.svg" alt="Logo" />
+                {{-- <img width="154" height="32" class="dark:hidden" src="/assets/images/logo/logo.svg" alt="Logo" />
+                <img width="154" height="32" class="hidden dark:block" src="/assets/images/logo/logo-dark.svg" alt="Logo" /> --}}
+                Prima Homestay
             </a>
 
             <!-- Application menu toggle (mobile only) -->
@@ -45,7 +47,8 @@
                             <x-ui.input-group.addon align="inline-start">
                                 <x-svg.search class="size-5 text-gray-500 dark:text-gray-400" />
                             </x-ui.input-group.addon>
-                            <x-ui.input-group.input x-ref="searchInput" type="text" placeholder="{{ __('header.searchPlaceholder') }}"
+                            <x-ui.input-group.input x-ref="searchInput" type="text"
+                                placeholder="{{ __('header.searchPlaceholder') }}"
                                 class="text-gray-800 placeholder:text-gray-400 dark:text-white/90 dark:placeholder:text-white/30" />
                             <x-ui.input-group.addon align="inline-end">
                                 <x-ui.badge variant="light" color="gray" size="sm"
@@ -65,7 +68,8 @@
             class="w-full items-center justify-between gap-4 px-5 py-4 shadow-theme-md xl:flex xl:justify-end xl:px-0 xl:shadow-none">
             <div class="2xsm:gap-3 flex items-center gap-2">
                 <!-- Theme toggler -->
-                <x-ui.button variant="outline" size="icon-lg" class="relative" aria-label="Toggle theme" @click="$store.theme.toggle()">
+                <x-ui.button variant="outline" size="icon-lg" class="relative" aria-label="Toggle theme"
+                    @click="$store.theme.toggle()">
                     <x-svg.sun x-show="$store.theme.resolvedTheme === 'dark'" />
                     <x-svg.moon x-show="$store.theme.resolvedTheme !== 'dark'" />
                 </x-ui.button>
