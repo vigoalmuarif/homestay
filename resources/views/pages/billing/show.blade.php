@@ -19,7 +19,7 @@
                     {{ $booking->booking_code }}
                 </div>
                 @php
-                    $payBadge = match ($booking->payment_status) {
+                    $payBadge = match ($folio['payment_status']) {
                         'paid' => ['color' => 'success', 'label' => 'Lunas (Paid)'],
                         'partial' => ['color' => 'warning', 'label' => 'Partial (Sebagian)'],
                         default => ['color' => 'error', 'label' => 'Unpaid (Belum Lunas)'],
@@ -289,7 +289,7 @@
                         <div class="flex justify-between text-gray-600 dark:text-gray-300">
                             <span>Status Folio Pembayaran:</span>
                             <span class="capitalize font-bold text-gray-800 dark:text-white">
-                                {{ $booking->payment_status }}
+                                {{ $folio['payment_status'] }}
                             </span>
                         </div>
                     </div>
@@ -320,13 +320,31 @@
                         Proses Kasir / Settlement
                     </h2>
 
-                    @if ($folio['is_settled'] && $booking->status === 'checked_out')
+                    @if ($folio['balance_due'] <= 0 && $booking->status === 'checked_out')
                         <div class="rounded-xl bg-emerald-50 p-4 text-xs text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400 space-y-1">
                             <div class="font-bold flex items-center gap-1.5">
                                 <x-svg.check class="size-4" />
                                 <span>Tagihan Telah Selesai &amp; Lunas</span>
                             </div>
                             <p>Tamu telah menyelesaikan seluruh tagihan dan telah Check-Out dari homestay.</p>
+                        </div>
+                    @elseif ($folio['balance_due'] <= 0)
+                        <div class="rounded-xl bg-emerald-50 p-4 text-xs text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400 space-y-2">
+                            <div class="font-bold flex items-center gap-1.5">
+                                <x-svg.check class="size-4" />
+                                <span>Tagihan Sudah Lunas Penuh</span>
+                            </div>
+                            <p>Uang muka / pembayaran telah menutup 100% biaya tagihan. Tidak ada sisa tagihan yang perlu ditagih ke tamu saat ini.</p>
+                            @if ($booking->status === 'checked_in')
+                                <div class="pt-2">
+                                    <form action="{{ route('bookings.check-out', $booking) }}" method="POST">
+                                        @csrf
+                                        <x-ui.button type="submit" size="sm" class="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                            Selesaikan Check-Out Tamu Sekarang
+                                        </x-ui.button>
+                                    </form>
+                                </div>
+                            @endif
                         </div>
                     @else
                         <form action="{{ route('billing.settle', $booking) }}" method="POST" class="space-y-4 text-xs">

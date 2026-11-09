@@ -40,6 +40,8 @@ test('super admin has unrestricted access to all homestay modules', function () 
         '/service-inclusions',
         '/inclusions/claim-desk',
         '/housekeeping',
+        '/operational/incomes',
+        '/operational/expenses',
         '/billing',
         '/reports',
         '/users',
@@ -65,6 +67,8 @@ test('receptionist can access operations and billing but is restricted from mana
         '/services',
         '/inclusions/claim-desk',
         '/housekeeping',
+        '/operational/incomes',
+        '/operational/expenses',
         '/billing',
     ];
 
@@ -114,6 +118,8 @@ test('housekeeping can access rooms and housekeeping but is blocked from booking
         '/dashboard',
         '/rooms',
         '/housekeeping',
+        '/operational/incomes',
+        '/operational/expenses',
     ];
 
     foreach ($allowedRoutes as $route) {
@@ -150,11 +156,18 @@ test('sidebar navigation automatically filters menu items based on authenticated
     expect($housekeepingNames)->toContain('Dashboard');
     expect($housekeepingNames)->toContain('Kamar & Tipe Kamar');
     expect($housekeepingNames)->toContain('Housekeeping');
+    expect($housekeepingNames)->toContain('Operasional');
     expect($housekeepingNames)->not->toContain('Reservasi & Front Desk');
     expect($housekeepingNames)->not->toContain('Data Tamu (Customer)');
     expect($housekeepingNames)->not->toContain('Layanan & F&B');
     expect($housekeepingNames)->not->toContain('Keuangan & Laporan');
     expect($housekeepingNames)->not->toContain('Kelola Petugas & Role');
+
+    // Check that housekeeping sees both Pemasukan and Pengeluaran under Operasional
+    $hkOperasionalItem = collect($housekeepingMenu)->firstWhere('name', 'Operasional');
+    $hkSubNames = collect($hkOperasionalItem['subItems'])->pluck('name')->all();
+    expect($hkSubNames)->toContain('Pemasukan Umum');
+    expect($hkSubNames)->toContain('Pengeluaran Umum');
 
     // 2. Receptionist Menu
     $this->actingAs($this->receptionist);
@@ -168,8 +181,15 @@ test('sidebar navigation automatically filters menu items based on authenticated
     expect($receptionistNames)->toContain('Kamar & Tipe Kamar');
     expect($receptionistNames)->toContain('Layanan & F&B');
     expect($receptionistNames)->toContain('Housekeeping');
+    expect($receptionistNames)->toContain('Operasional');
     expect($receptionistNames)->toContain('Keuangan & Laporan');
     expect($receptionistNames)->not->toContain('Kelola Petugas & Role');
+
+    // Check that receptionist sees both Pemasukan and Pengeluaran under Operasional
+    $recOperasionalItem = collect($receptionistMenu)->firstWhere('name', 'Operasional');
+    $recSubNames = collect($recOperasionalItem['subItems'])->pluck('name')->all();
+    expect($recSubNames)->toContain('Pemasukan Umum');
+    expect($recSubNames)->toContain('Pengeluaran Umum');
 
     // Check that inside "Kamar & Tipe Kamar", receptionist only sees "Daftar Kamar Fisik" (not "Katalog Tipe Kamar")
     $kamarItem = collect($receptionistMenu)->firstWhere('name', 'Kamar & Tipe Kamar');

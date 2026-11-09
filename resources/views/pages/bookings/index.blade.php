@@ -7,6 +7,21 @@
         roomNumber: '',
         depositAmount: 0,
         checkInActionUrl: '',
+
+        checkOutBookingId: null,
+        checkOutActionUrl: '',
+        isLoadingFolio: false,
+        folioData: null,
+        allowUnsettled: false,
+        paymentMethod: 'cash',
+        amountPaid: 0,
+        paymentNotes: '',
+        unsettledReason: '',
+        refundConfirmed: false,
+
+        formatRupiah(num) {
+            return new Intl.NumberFormat('id-ID').format(num || 0);
+        },
     
         showDialog(id) {
             if (window.showUiDialog) {
@@ -35,6 +50,33 @@
             this.depositAmount = currentDeposit || 0;
             this.checkInActionUrl = `/bookings/${bookingId}/check-in`;
             this.showDialog('checkInDialog');
+        },
+        openCheckOut(bookingId, guestName, roomNumber) {
+            this.checkOutBookingId = bookingId;
+            this.guestName = guestName;
+            this.roomNumber = roomNumber;
+            this.checkOutActionUrl = `/bookings/${bookingId}/check-out`;
+            this.isLoadingFolio = true;
+            this.folioData = null;
+            this.allowUnsettled = false;
+            this.paymentMethod = 'cash';
+            this.amountPaid = 0;
+            this.paymentNotes = '';
+            this.unsettledReason = '';
+            this.refundConfirmed = false;
+            this.showDialog('checkOutDialog');
+
+            fetch(`/bookings/${bookingId}/folio-summary`)
+                .then(res => res.json())
+                .then(data => {
+                    this.folioData = data;
+                    this.amountPaid = data.balance_due || 0;
+                    this.isLoadingFolio = false;
+                })
+                .catch(err => {
+                    console.error('Gagal mengambil ringkasan folio:', err);
+                    this.isLoadingFolio = false;
+                });
         }
     }" class="space-y-6">
 
@@ -255,14 +297,11 @@
 
                                         <!-- Check-Out Action -->
                                         @if ($booking->status === 'checked_in')
-                                            <form action="{{ route('bookings.check-out', $booking) }}" method="POST"
-                                                onsubmit="return confirm('Proses Check-Out untuk kamar {{ $booking->room->room_number }}? Kamar akan otomatis dialihkan ke status Dirty untuk dibersihkan.')">
-                                                @csrf
-                                                <x-ui.button type="submit" size="sm"
-                                                    class="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                                    Check-Out
-                                                </x-ui.button>
-                                            </form>
+                                            <x-ui.button type="button" size="sm"
+                                                class="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                @click="openCheckOut({{ $booking->id }}, '{{ addslashes($booking->customer->full_name) }}', '{{ $booking->room->room_number }}')">
+                                                Check-Out
+                                            </x-ui.button>
                                         @endif
 
                                         <!-- Detail Button -->
@@ -386,6 +425,9 @@
                 </form>
             </x-ui.dialog.content>
         </x-ui.dialog>
+
+        <!-- Folio Verification & Check-Out Modal -->
+        <x-main.bookings.checkout-modal />
 
     </div>
 @endsection

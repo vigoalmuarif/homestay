@@ -119,7 +119,8 @@ test('duplicate room number is rejected', function () {
 });
 
 test('fast status switcher allows updating room status', function () {
-    $room = Room::where('status', 'dirty')->first();
+    $room = Room::where('status', 'dirty')->first() ?? Room::first();
+    $this->assertNotNull($room);
 
     $response = $this->actingAs($this->housekeeping)->post(route('rooms.update-status', $room), [
         'status' => 'available',

@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Room;
 use App\Models\RoomType;
 use App\Services\BookingConflictService;
+use App\Services\FolioCalculationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -232,19 +233,115 @@ class BookingController extends Controller
     }
 
     /**
-     * Quick action: Check-out guest.
+     * Get folio summary JSON for checkout modal calculation.
      */
-    public function checkOut(Request $request, Booking $booking): RedirectResponse
+    public function folioSummary(Booking $booking, FolioCalculationService $folioService): JsonResponse
+    {
+        $folio = $folioService->calculateFolio($booking);
+
+        return response()->json([
+            'booking_id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'customer_name' => $booking->customer?->full_name ?? 'Tamu',
+            'room_number' => $booking->room?->room_number ?? '-',
+            'room_type' => $booking->room?->roomType?->name ?? '-',
+            'total_nights' => $folio['total_nights'],
+            'room_price_snapshot' => (float) $folio['room_price_snapshot'],
+            'total_room_charge' => (float) $folio['total_room_charge'],
+            'total_charged_to_room' => (float) $folio['total_charged_to_room'],
+            'gross_total' => (float) $folio['gross_total'],
+            'deposit_amount' => (float) $folio['deposit_amount'],
+            'balance_due' => (float) $folio['balance_due'],
+            'refund_due' => (float) $folio['refund_due'],
+            'payment_status' => $booking->payment_status,
+            'is_settled' => (bool) $folio['is_settled'],
+            'unpaid_items' => $folio['charged_to_room_items']->map(fn($item) => [
+                'name' => $item->item_name,
+                'quantity' => $item->quantity,
+                'subtotal' => (float) $item->subtotal,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * Quick action: Check-out guest with folio validation and settlement handling.
+     */
+    public function checkOut(Request $request, Booking $booking, FolioCalculationService $folioService): RedirectResponse
     {
         if ($booking->status !== 'checked_in') {
             return back()->withErrors(['error' => 'Hanya tamu dengan status Check-In yang dapat melakukan Check-Out.']);
         }
 
+        $folio = $folioService->calculateFolio($booking);
+        $balanceDue = (float) $folio['balance_due'];
+        $refundDue = (float) $folio['refund_due'];
+
+        // Skenario 2: Masih ada sisa tagihan yang belum dibayar
+        if ($balanceDue > 0.00) {
+            // Opsi A: Selesaikan pelunasan kasir langsung (Quick Settlement)
+            if ($request->boolean('settle_payment') || $request->filled('amount_paid')) {
+                $validated = $request->validate([
+                    'amount_paid' => ['required', 'numeric', 'min:0'],
+                    'payment_method' => ['required', 'string', 'in:cash,qris,transfer,card,deposit_offset'],
+                    'payment_notes' => ['nullable', 'string', 'max:500'],
+                ]);
+
+                $folioService->settle($booking, [
+                    'amount_paid' => $validated['amount_paid'],
+                    'payment_method' => $validated['payment_method'],
+                    'notes' => $validated['payment_notes'] ?? null,
+                    'auto_checkout' => true,
+                ]);
+
+                return back()->with('success', "Pelunasan tagihan berhasil & Tamu Kamar {$booking->room?->room_number} telah selesai Check-Out. Kamar berstatus Dirty.");
+            }
+
+            // Opsi B: Check-Out bersyarat sebagai piutang (City Ledger / Corporate / Tamu Khusus)
+            if ($request->boolean('allow_unsettled')) {
+                $validated = $request->validate([
+                    'unsettled_reason' => ['required', 'string', 'min:3', 'max:500'],
+                ]);
+
+                $timestamp = Carbon::now()->format('d/m/Y H:i');
+                $log = "[Check-Out Piutang {$timestamp}] Sisa Tagihan: Rp " . number_format($balanceDue, 0, ',', '.') . " | Alasan/Penjamin: {$validated['unsettled_reason']}";
+                $booking->notes = trim(($booking->notes ? $booking->notes . "\n" : '') . $log);
+
+                $booking->status = 'checked_out';
+                $booking->actual_check_out_at = Carbon::now();
+                $booking->save();
+
+                if ($booking->room) {
+                    $booking->room->update(['status' => 'dirty']);
+                }
+
+                return back()->with('warning', "Check-Out bersyarat berhasil dicatat sebagai piutang (Sisa: Rp " . number_format($balanceDue, 0, ',', '.') . "). Kamar {$booking->room?->room_number} kini berstatus Dirty.");
+            }
+
+            // Blokir check-out jika tidak ada settlement atau izin piutang
+            return back()->withErrors([
+                'error' => "Tamu masih memiliki sisa tagihan sebesar Rp " . number_format($balanceDue, 0, ',', '.') . ". Harap selesaikan pembayaran tagihan atau gunakan opsi Check-Out Piutang terlebih dahulu.",
+            ]);
+        }
+
+        // Skenario 3: Ada deposit berlebih yang perlu dikembalikan ke tamu
+        if ($refundDue > 0.00 && $request->boolean('refund_confirmed')) {
+            $timestamp = Carbon::now()->format('d/m/Y H:i');
+            $refundNotes = $request->input('refund_notes');
+            $log = "[Pengembalian Deposit {$timestamp}] Nominal: Rp " . number_format($refundDue, 0, ',', '.') . " telah diserahkan kembali kepada tamu.";
+            if (filled($refundNotes)) {
+                $log .= " | Catatan: {$refundNotes}";
+            }
+            $booking->notes = trim(($booking->notes ? $booking->notes . "\n" : '') . $log);
+        }
+
+        // Skenario 1: Tagihan lunas bersih
         $booking->status = 'checked_out';
-        $booking->actual_check_out_at = now();
+        $booking->actual_check_out_at = Carbon::now();
         $booking->save();
 
-        $booking->room->update(['status' => 'dirty']);
+        if ($booking->room) {
+            $booking->room->update(['status' => 'dirty']);
+        }
 
         return back()->with('success', "Check-Out berhasil. Kamar {$booking->room->room_number} kini berstatus Dirty (Perlu dibersihkan).");
     }

@@ -23,6 +23,8 @@ class BookingItem extends Model
         'is_free_inclusion',
         'notes',
         'served_by',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

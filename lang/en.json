@@ -2555,5 +2555,8 @@
     "sales.revenueChart.weekly": "Weekly",
     "sales.revenueChart.monthly": "Monthly",
     "sales.revenueChart.online": "Online",
-    "sales.revenueChart.offline": "Offline"
+    "sales.revenueChart.offline": "Offline",
+    "Operasional": "Operations",
+    "Pemasukan Umum": "General Incomes",
+    "Pengeluaran Umum": "General Expenses"
 }

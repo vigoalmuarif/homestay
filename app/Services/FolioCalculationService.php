@@ -70,8 +70,23 @@ class FolioCalculationService
         $balanceDue = max(0.00, (float) ($grossTotal - $depositPaid));
         $refundDue = max(0.00, (float) ($depositPaid - $grossTotal));
 
-        $isSettled = ($booking->payment_status === 'paid' && $balanceDue <= 0.00)
-            || ($booking->status === 'checked_out' && $booking->payment_status === 'paid');
+        // Automatically determine calculated payment status
+        if ($balanceDue <= 0.00 && ($depositPaid > 0 || $grossTotal == 0)) {
+            $paymentStatus = 'paid';
+        } elseif ($depositPaid > 0 && $balanceDue > 0) {
+            $paymentStatus = 'partial';
+        } else {
+            $paymentStatus = 'unpaid';
+        }
+
+        // If database payment_status is out of sync, update it
+        if ($booking->payment_status !== $paymentStatus && $booking->exists) {
+            $booking->payment_status = $paymentStatus;
+            $booking->saveQuietly();
+        }
+
+        $isSettled = ($paymentStatus === 'paid' && $balanceDue <= 0.00)
+            || ($booking->status === 'checked_out' && $paymentStatus === 'paid');
 
         return [
             'booking' => $booking,
@@ -89,7 +104,7 @@ class FolioCalculationService
             'deposit_amount' => $depositPaid,
             'balance_due' => $balanceDue,
             'refund_due' => $refundDue,
-            'payment_status' => $booking->payment_status,
+            'payment_status' => $paymentStatus,
             'is_settled' => $isSettled,
         ];
     }
@@ -119,13 +134,29 @@ class FolioCalculationService
             $folio = $this->calculateFolio($booking);
             $balanceDue = $folio['balance_due'];
 
+            // Update deposited/paid amount if payment method is not offsetting existing deposit
+            if ($paymentMethod !== 'deposit_offset' && $amountPaid > 0) {
+                $booking->deposit_amount = (float) $booking->deposit_amount + $amountPaid;
+            }
+
             // Determine updated payment status
-            if ($amountPaid >= $balanceDue && $balanceDue > 0) {
-                $booking->payment_status = 'paid';
-            } elseif ($balanceDue <= 0) {
-                $booking->payment_status = 'paid';
-            } elseif ($amountPaid > 0 && $amountPaid < $balanceDue) {
-                $booking->payment_status = 'partial';
+            $currentDeposit = (float) $booking->deposit_amount;
+            $newBalanceDue = max(0.00, (float) ($folio['gross_total'] - $currentDeposit));
+
+            if ($paymentMethod === 'deposit_offset') {
+                if ($amountPaid >= $balanceDue && $balanceDue > 0) {
+                    $booking->payment_status = 'paid';
+                } elseif ($balanceDue <= 0) {
+                    $booking->payment_status = 'paid';
+                } elseif ($amountPaid > 0) {
+                    $booking->payment_status = 'partial';
+                }
+            } else {
+                if ($newBalanceDue <= 0.00) {
+                    $booking->payment_status = 'paid';
+                } elseif ($currentDeposit > 0) {
+                    $booking->payment_status = 'partial';
+                }
             }
 
             // Append settlement log into notes
@@ -207,9 +238,16 @@ class FolioCalculationService
             $deposit = (float) ($b->deposit_amount ?? 0);
             $due = max(0.00, $gross - $deposit);
 
-            if ($b->payment_status === 'paid') {
+            $effStatus = $b->payment_status;
+            if ($due <= 0.00 && ($deposit > 0 || $gross == 0)) {
+                $effStatus = 'paid';
+            } elseif ($deposit > 0 && $due > 0) {
+                $effStatus = 'partial';
+            }
+
+            if ($effStatus === 'paid') {
                 $paidCount++;
-            } elseif ($b->payment_status === 'partial') {
+            } elseif ($effStatus === 'partial') {
                 $partialCount++;
                 $totalOutstandingBalance += $due;
             } else {

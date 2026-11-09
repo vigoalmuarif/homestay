@@ -65,6 +65,18 @@ return [
         'title' => 'Housekeeping & Manajemen Kamar | Prima Homestay',
         'description' => 'Pantau status kebersihan kamar fisik, penugasan pembersihan staf, dan laporan kamar siap huni.',
     ],
+    '/operational' => [
+        'title' => 'Operasional & Kas Homestay | Prima Homestay',
+        'description' => 'Manajemen kas operasional harian, pemasukan umum, dan pengeluaran umum homestay.',
+    ],
+    '/operational/incomes' => [
+        'title' => 'Pemasukan Umum Operasional | Prima Homestay',
+        'description' => 'Daftar dan pencatatan penerimaan kas pemasukan umum operasional.',
+    ],
+    '/operational/expenses' => [
+        'title' => 'Pengeluaran Umum Operasional | Prima Homestay',
+        'description' => 'Daftar dan pencatatan pengeluaran operasional homestay oleh staf.',
+    ],
     '/images' => [
         'title' => 'Laravel Images | TailAdmin - Laravel Dashboard Template',
         'description' => 'This is Laravel Images page for TailAdmin - Laravel Tailwind CSS Admin Dashboard Template',

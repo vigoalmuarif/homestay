@@ -16,7 +16,7 @@
         },
         initializeActiveMenus() {
             const currentPath = '{{ $currentPath }}';
-
+    
             @foreach ($menuGroups as $groupIndex => $menuGroup)
                 @foreach ($menuGroup['items'] as $itemIndex => $item)
                     @if (isset($item['subItems']))
@@ -34,12 +34,12 @@
         toggleSubmenu(groupIndex, itemIndex) {
             const key = groupIndex + '-' + itemIndex;
             const newState = !this.openSubmenus[key];
-
+    
             // Close all other submenus when opening a new one
             if (newState) {
                 this.openSubmenus = {};
             }
-
+    
             this.openSubmenus[key] = newState;
         },
         isSubmenuOpen(groupIndex, itemIndex) {
@@ -57,13 +57,17 @@
     @mouseenter="if (!$store.sidebar.isExpanded) $store.sidebar.setHovered(true)"
     @mouseleave="$store.sidebar.setHovered(false)">
     <!-- Logo Section -->
-    <div class="py-8 flex items-center gap-2" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' : 'justify-between'">
+    <div class="py-8 flex items-center gap-2"
+        :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' :
+        'justify-between'">
         <a href="/">
             <div class="hidden [.sidebar-expanded_&]:block">
-                <img class="dark:hidden" src="/assets/images/logo/logo.svg" alt="Logo" width="150" height="40" />
-                <img class="hidden dark:block" src="/assets/images/logo/logo-dark.svg" alt="Logo" width="150" height="40" />
+                {{-- <img class="dark:hidden" src="/assets/images/logo/logo.svg" alt="Logo" width="150" height="40" />
+                <img class="hidden dark:block" src="/assets/images/logo/logo-dark.svg" alt="Logo" width="150" height="40" /> --}}
+                <p class="font-bold">Prima Homestay</p>
             </div>
-            <img class="block [.sidebar-expanded_&]:hidden" src="/assets/images/logo/logo-icon.svg" alt="Logo" width="32" height="32" />
+            {{-- <img class="block [.sidebar-expanded_&]:hidden" src="/assets/images/logo/logo-icon.svg" alt="Logo" width="32" height="32" /> --}}
+            <p class="font-bold block [.sidebar-expanded_&]:hidden">Prima Homestay</p>
         </a>
     </div>
 
@@ -81,9 +85,13 @@
                                 x-if="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen">
                                 <span>{{ __($menuGroup['title']) }}</span>
                             </template>
-                            <template x-if="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path fill-rule="evenodd" clip-rule="evenodd" d="M5.99915 10.2451C6.96564 10.2451 7.74915 11.0286 7.74915 11.9951V12.0051C7.74915 12.9716 6.96564 13.7551 5.99915 13.7551C5.03265 13.7551 4.24915 12.9716 4.24915 12.0051V11.9951C4.24915 11.0286 5.03265 10.2451 5.99915 10.2451ZM17.9991 10.2451C18.9656 10.2451 19.7491 11.0286 19.7491 11.9951V12.0051C19.7491 12.9716 18.9656 13.7551 17.9991 13.7551C17.0326 13.7551 16.2491 12.9716 16.2491 12.0051V11.9951C16.2491 11.0286 17.0326 10.2451 17.9991 10.2451ZM13.7491 11.9951C13.7491 11.0286 12.9656 10.2451 11.9991 10.2451C11.0326 10.2451 10.2491 11.0286 10.2491 11.9951V12.0051C10.2491 12.9716 11.0326 13.7551 11.9991 13.7551C12.9656 13.7551 13.7491 12.9716 13.7491 12.0051V11.9951Z" fill="currentColor"/>
+                            <template
+                                x-if="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd" clip-rule="evenodd"
+                                        d="M5.99915 10.2451C6.96564 10.2451 7.74915 11.0286 7.74915 11.9951V12.0051C7.74915 12.9716 6.96564 13.7551 5.99915 13.7551C5.03265 13.7551 4.24915 12.9716 4.24915 12.0051V11.9951C4.24915 11.0286 5.03265 10.2451 5.99915 10.2451ZM17.9991 10.2451C18.9656 10.2451 19.7491 11.0286 19.7491 11.9951V12.0051C19.7491 12.9716 18.9656 13.7551 17.9991 13.7551C17.0326 13.7551 16.2491 12.9716 16.2491 12.0051V11.9951C16.2491 11.0286 17.0326 10.2451 17.9991 10.2451ZM13.7491 11.9951C13.7491 11.0286 12.9656 10.2451 11.9991 10.2451C11.0326 10.2451 10.2491 11.0286 10.2491 11.9951V12.0051C10.2491 12.9716 11.0326 13.7551 11.9991 13.7551C12.9656 13.7551 13.7491 12.9716 13.7491 12.0051V11.9951Z"
+                                        fill="currentColor" />
                                 </svg>
                             </template>
                         </h2>
@@ -104,7 +112,8 @@
                                             ]">
 
                                             <!-- Icon -->
-                                            <span :class="isSubmenuOpen({{ $groupIndex }}, {{ $itemIndex }}) ?
+                                            <span
+                                                :class="isSubmenuOpen({{ $groupIndex }}, {{ $itemIndex }}) ?
                                                     'menu-item-icon-active' : 'menu-item-icon-inactive'">
                                                 {!! MenuHelper::getIconSvg($item['icon']) !!}
                                             </span>
@@ -125,22 +134,30 @@
                                             </span>
 
                                             <!-- Chevron Down Icon -->
-                                            <x-svg.chevron-down x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
+                                            <x-svg.chevron-down
+                                                x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
                                                 class="ms-auto h-5 w-5 transition-transform duration-200"
-                                                x-bind:class="{ 'rotate-180 text-brand-500': isSubmenuOpen({{ $groupIndex }}, {{ $itemIndex }}) }" />
+                                                x-bind:class="{
+                                                    'rotate-180 text-brand-500': isSubmenuOpen({{ $groupIndex }},
+                                                        {{ $itemIndex }})
+                                                }" />
                                         </button>
 
                                         <!-- Submenu -->
-                                        <div x-show="isSubmenuOpen({{ $groupIndex }}, {{ $itemIndex }}) && ($store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen)">
+                                        <div
+                                            x-show="isSubmenuOpen({{ $groupIndex }}, {{ $itemIndex }}) && ($store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen)">
                                             <ul class="mt-2 space-y-1 ltr:ml-9 rtl:mr-9">
                                                 @foreach ($item['subItems'] as $subItem)
                                                     <li>
-                                                        <a href="{{ $subItem['path'] }}" @if(str_starts_with($subItem['path'], '/layout-')) target="_blank" @endif class="menu-dropdown-item"
+                                                        <a href="{{ $subItem['path'] }}"
+                                                            @if (str_starts_with($subItem['path'], '/layout-')) target="_blank" @endif
+                                                            class="menu-dropdown-item"
                                                             :class="isActive('{{ $subItem['path'] }}') ?
                                                                 'menu-dropdown-item-active' :
                                                                 'menu-dropdown-item-inactive'">
                                                             {{ __($subItem['name']) }}
-                                                            <span class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto">
+                                                            <span
+                                                                class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto">
                                                                 @if (!empty($subItem['new']))
                                                                     <span
                                                                         :class="isActive('{{ $subItem['path'] }}') ?
@@ -165,11 +182,14 @@
                                         </div>
                                     @else
                                         <!-- Simple Menu Item -->
-                                        <a href="{{ $item['path'] }}" @if(str_starts_with($item['path'], '/layout-')) target="_blank" @endif class="menu-item group"
+                                        <a href="{{ $item['path'] }}"
+                                            @if (str_starts_with($item['path'], '/layout-')) target="_blank" @endif
+                                            class="menu-item group"
                                             :class="[
                                                 isActive('{{ $item['path'] }}') ? 'menu-item-active' :
                                                 'menu-item-inactive',
-                                                (!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ?
+                                                (!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store
+                                                    .sidebar.isMobileOpen) ?
                                                 'xl:justify-center' :
                                                 'justify-start'
                                             ]">
@@ -204,7 +224,8 @@
         </nav>
 
         <!-- Sidebar Widget -->
-        <div x-data x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" x-transition class="mt-auto">
+        <div x-data x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
+            x-transition class="mt-auto">
             @include('layouts.sidebar-widget')
         </div>
 

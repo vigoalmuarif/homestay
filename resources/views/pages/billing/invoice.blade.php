@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,30 +14,38 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
+
             .no-print {
                 display: none !important;
             }
+
             .page-break {
                 page-break-after: always;
             }
         }
     </style>
 </head>
+
 <body class="bg-gray-100 font-outfit text-gray-800 antialiased">
 
     <!-- Top Action Bar for screen view -->
     <div class="no-print bg-white border-b border-gray-200 py-3 px-6 shadow-sm sticky top-0 z-50">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <a href="{{ route('billing.show', $booking) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1">
+                <a href="{{ route('billing.show', $booking) }}"
+                    class="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1">
                     &larr; Kembali ke Folio
                 </a>
                 <span class="text-gray-300">|</span>
                 <span class="text-xs text-gray-500">Invoice Reservasi #{{ $booking->booking_code }}</span>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="window.print()" class="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 shadow-sm flex items-center gap-1.5">
-                    <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <button onclick="window.print()"
+                    class="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 shadow-sm flex items-center gap-1.5">
+                    <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
                     <span>Cetak / Simpan PDF (Ctrl+P)</span>
                 </button>
             </div>
@@ -44,21 +53,23 @@
     </div>
 
     <!-- Invoice Paper Container -->
-    <div class="max-w-4xl mx-auto my-8 p-8 sm:p-12 bg-white rounded-2xl shadow-md border border-gray-100 print:border-none print:shadow-none print:my-0 print:p-0">
+    <div
+        class="max-w-4xl mx-auto my-8 p-8 sm:p-12 bg-white rounded-2xl shadow-md border border-gray-100 print:border-none print:shadow-none print:my-0 print:p-0">
 
         <!-- Invoice Header -->
         <div class="flex flex-col sm:flex-row justify-between items-start gap-6 border-b border-gray-200 pb-8">
             <div>
                 <div class="flex items-center gap-2">
-                    <div class="flex size-9 items-center justify-center rounded-xl bg-brand-600 text-white font-black text-lg">
+                    <div
+                        class="flex size-9 items-center justify-center rounded-xl bg-brand-600 text-white font-black text-lg">
                         T
                     </div>
-                    <span class="text-xl font-black tracking-tight text-gray-900">TailAdmin Homestay</span>
+                    <span class="text-xl font-black tracking-tight text-gray-900">Prima Homestay</span>
                 </div>
                 <p class="mt-2 text-xs text-gray-500 leading-relaxed">
                     Jl. Pariwisata Utama No. 88, Kawasan Homestay &amp; Resort<br>
-                    Telepon: +62 812-3456-7890 &bull; Email: stay@tailadmin-homestay.test<br>
-                    Website: https://tailadmin-homestay.test
+                    Telepon: +62 812-3456-7890 &bull; Email: stay@prima-homestay.test<br>
+                    Website: https://prima-homestay.test
                 </p>
             </div>
             <div class="sm:text-right">
@@ -68,16 +79,19 @@
                     Tanggal: {{ now()->format('d F Y') }}
                 </div>
                 <div class="mt-2 inline-block">
-                    @if ($folio['balance_due'] <= 0 && $booking->payment_status === 'paid')
-                        <span class="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 tracking-wider">
+                    @if ($folio['balance_due'] <= 0 && ($booking->payment_status === 'paid' || $folio['payment_status'] === 'paid'))
+                        <span
+                            class="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 tracking-wider">
                             LUNAS / PAID
                         </span>
-                    @elseif ($booking->payment_status === 'partial')
-                        <span class="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 tracking-wider">
+                    @elseif ($folio['payment_status'] === 'partial' || $booking->payment_status === 'partial')
+                        <span
+                            class="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 tracking-wider">
                             PARTIAL (DP)
                         </span>
                     @else
-                        <span class="rounded-md border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 tracking-wider">
+                        <span
+                            class="rounded-md border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 tracking-wider">
                             BELUM LUNAS / UNPAID
                         </span>
                     @endif
@@ -92,7 +106,8 @@
                 <div class="text-sm font-bold text-gray-900 mt-1">{{ $booking->customer?->full_name ?? '-' }}</div>
                 <div class="text-gray-600 mt-0.5">No. Telepon: {{ $booking->customer?->phone_number ?? '-' }}</div>
                 <div class="text-gray-600">
-                    Identitas ({{ strtoupper($booking->customer?->identity_type ?? 'KTP') }}): {{ $booking->customer?->identity_number ?? '-' }}
+                    Identitas ({{ strtoupper($booking->customer?->identity_type ?? 'KTP') }}):
+                    {{ $booking->customer?->identity_number ?? '-' }}
                 </div>
                 @if ($booking->customer?->address)
                     <div class="text-gray-500 mt-0.5">{{ $booking->customer->address }}</div>
@@ -102,7 +117,8 @@
             <div class="sm:text-right">
                 <div class="font-bold text-gray-400 uppercase tracking-wider text-[10px]">RINCIAN RESERVASI</div>
                 <div class="text-sm font-bold text-gray-900 mt-1">
-                    Kamar {{ $booking->room?->room_number ?? '-' }} &bull; {{ $booking->room?->roomType?->name ?? '-' }}
+                    Kamar {{ $booking->room?->room_number ?? '-' }} &bull;
+                    {{ $booking->room?->roomType?->name ?? '-' }}
                 </div>
                 <div class="text-gray-600 mt-0.5">
                     Check-In: {{ $booking->check_in_date->format('d M Y, H:i') }} WIB
@@ -136,11 +152,13 @@
                                 Sewa Kamar {{ $booking->room?->room_number }} ({{ $booking->room?->roomType?->name }})
                             </div>
                             <div class="text-[11px] text-gray-500">
-                                Tarif @ Rp {{ number_format($folio['room_price_snapshot'], 0, ',', '.') }} x {{ $folio['total_nights'] }} malam
+                                Tarif @ Rp {{ number_format($folio['room_price_snapshot'], 0, ',', '.') }} x
+                                {{ $folio['total_nights'] }} malam
                             </div>
                         </td>
                         <td class="py-3 text-center">{{ $folio['total_nights'] }} Malam</td>
-                        <td class="py-3 text-end">Rp {{ number_format($folio['room_price_snapshot'], 0, ',', '.') }}</td>
+                        <td class="py-3 text-end">Rp {{ number_format($folio['room_price_snapshot'], 0, ',', '.') }}
+                        </td>
                         <td class="py-3 text-end text-gray-400">-</td>
                         <td class="py-3 text-end font-bold text-gray-900">
                             Rp {{ number_format($folio['total_room_charge'], 0, ',', '.') }}
@@ -155,7 +173,8 @@
                                     <div class="font-medium text-gray-800">
                                         {{ $item->item_name }}
                                         @if ($item->is_free_inclusion)
-                                            <span class="text-[10px] text-emerald-600 font-semibold">(Inklusi Gratis)</span>
+                                            <span class="text-[10px] text-emerald-600 font-semibold">(Inklusi
+                                                Gratis)</span>
                                         @endif
                                         @if ($item->billing_type === 'paid_instantly')
                                             <span class="text-[10px] text-gray-500 font-medium">(Lunas Ditempat)</span>
@@ -188,7 +207,8 @@
         <div class="border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-between items-start gap-6 text-xs">
             <div class="space-y-1 text-gray-500 max-w-sm">
                 <p><strong>Catatan Pembayaran:</strong></p>
-                <p>Terima kasih telah menginap di TailAdmin Homestay. Simpan invoice ini sebagai bukti sah pembayaran.</p>
+                <p>Terima kasih telah menginap di TailAdmin Homestay. Simpan invoice ini sebagai bukti sah pembayaran.
+                </p>
                 @if ($booking->notes)
                     <div class="mt-2 rounded bg-gray-50 p-2 text-[11px] text-gray-600 border border-gray-200">
                         {{ $booking->notes }}
@@ -213,7 +233,8 @@
                     <span>Uang Jaminan / Deposit:</span>
                     <span>- Rp {{ number_format($folio['deposit_amount'], 0, ',', '.') }}</span>
                 </div>
-                <div class="flex justify-between font-black text-base {{ $folio['balance_due'] > 0 ? 'text-rose-600' : 'text-emerald-600' }} border-t-2 border-gray-300 pt-2">
+                <div
+                    class="flex justify-between font-black text-base {{ $folio['balance_due'] > 0 ? 'text-rose-600' : 'text-emerald-600' }} border-t-2 border-gray-300 pt-2">
                     <span>{{ $folio['balance_due'] > 0 ? 'SISA TAGIHAN:' : 'TAGIHAN LUNAS:' }}</span>
                     <span>Rp {{ number_format($folio['balance_due'], 0, ',', '.') }}</span>
                 </div>
@@ -237,5 +258,5 @@
     </div>
 
 </body>
-</html>
 
+</html>

@@ -7,6 +7,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HousekeepingController;
 use App\Http\Controllers\InclusionClaimController;
+use App\Http\Controllers\OperationalTransactionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomOrderController;
@@ -51,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['permission:view bookings'])->group(function () {
         Route::get('/bookings/available-rooms', [BookingController::class, 'availableRooms'])->name('bookings.available-rooms');
         Route::get('/bookings/calendar-events', [BookingController::class, 'calendarEvents'])->name('bookings.calendar-events');
+        Route::get('/bookings/{booking}/folio-summary', [BookingController::class, 'folioSummary'])->name('bookings.folio-summary');
 
         Route::middleware(['permission:checkin checkout'])->group(function () {
             Route::post('/bookings/{booking}/check-in', [BookingController::class, 'checkIn'])->name('bookings.check-in');
@@ -140,11 +142,26 @@ Route::middleware('auth')->group(function () {
         });
     });
 
+    // Operasional (Pemasukan & Pengeluaran Umum)
+    Route::middleware(['permission:view operational'])->prefix('operational')->name('operational.')->group(function () {
+        Route::get('/', [OperationalTransactionController::class, 'index'])->name('index');
+        Route::get('/incomes', [OperationalTransactionController::class, 'incomes'])->name('incomes');
+        Route::get('/expenses', [OperationalTransactionController::class, 'expenses'])->name('expenses');
+        Route::get('/export-csv', [OperationalTransactionController::class, 'exportCsv'])->name('export-csv');
+
+        Route::middleware(['permission:create operational'])->group(function () {
+            Route::post('/transactions', [OperationalTransactionController::class, 'store'])->name('transactions.store');
+            Route::match(['put', 'patch'], '/transactions/{operationalTransaction}', [OperationalTransactionController::class, 'update'])->name('transactions.update');
+            Route::delete('/transactions/{operationalTransaction}', [OperationalTransactionController::class, 'destroy'])->name('transactions.destroy');
+        });
+    });
+
     // Folio Billing, Settlement & Financial Invoicing
     Route::middleware(['permission:view billing'])->prefix('billing')->name('billing.')->group(function () {
         Route::get('/', [BillingController::class, 'index'])->name('index');
         Route::get('/export-csv', [BillingController::class, 'exportCsv'])->name('export-csv');
         Route::get('/{booking}', [BillingController::class, 'show'])->name('show');
+        Route::get('/{booking}/statement', [BillingController::class, 'show'])->name('statement');
         Route::get('/{booking}/invoice', [BillingController::class, 'invoice'])->name('invoice');
 
         Route::middleware(['permission:process payments'])->group(function () {

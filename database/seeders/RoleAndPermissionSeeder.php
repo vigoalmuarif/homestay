@@ -48,6 +48,11 @@ class RoleAndPermissionSeeder extends Seeder
             'view housekeeping',
             'manage housekeeping',
 
+            // Operasional (Pemasukan & Pengeluaran Umum)
+            'view operational',
+            'create operational',
+            'manage operational',
+
             // Billing & Invoicing
             'view billing',
             'process payments',
@@ -86,6 +91,9 @@ class RoleAndPermissionSeeder extends Seeder
             'view room-orders',
             'manage room-orders',
             'view housekeeping',
+            'view operational',
+            'create operational',
+            'manage operational',
             'view billing',
             'process payments',
         ]);
@@ -98,6 +106,8 @@ class RoleAndPermissionSeeder extends Seeder
             'update room status',
             'view housekeeping',
             'manage housekeeping',
+            'view operational',
+            'create operational',
         ]);
     }
 }
